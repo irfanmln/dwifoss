@@ -511,7 +511,7 @@ function openDetail(id) {
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
   document.getElementById('detailPrice').textContent = formatRp(currentProduct.price);
-  document.getElementById('detailDesc').textContent = currentProduct.description || '';
+  document.getElementById('detailDesc').innerHTML = (currentProduct.description || '').replace(/\n/g, '<br>');
   showPage('detail');
 }
 
