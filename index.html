@@ -383,8 +383,11 @@
           <input class="form-input" id="pPrice" type="number" placeholder="2500000">
         </div>
         <div class="form-group">
-          <label class="form-label">Emoji / Icon</label>
-          <input class="form-input" id="pEmoji" placeholder="🟤">
+          <label class="form-label">Foto Produk *</label>
+          <input class="form-input" id="pImage" type="file" accept="image/*" style="padding:10px 14px">
+          <div id="pImagePreview" style="margin-top:8px;display:none">
+            <img id="pImagePreviewImg" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--stone)">
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
@@ -493,7 +496,9 @@ function renderProducts(products) {
   }
   grid.innerHTML = products.map(p => `
     <div class="product-card" onclick="openDetail('${p.id}')">
-      <div class="product-img-placeholder">${p.emoji || '👜'}</div>
+      ${p.image_url
+        ? `<img class="product-img" src="${p.image_url}" alt="${p.name}" loading="lazy">`
+        : `<div class="product-img-placeholder">${p.emoji || '👜'}</div>`}
       <div class="product-info">
         ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
         <p class="product-brand">${p.brand}</p>
@@ -507,7 +512,12 @@ function renderProducts(products) {
 // ── DETAIL ──
 function openDetail(id) {
   currentProduct = allProducts.find(p => p.id === id);
-  document.getElementById('detailEmoji').textContent = currentProduct.emoji || '👜';
+  const detailImgEl = document.getElementById('detailEmoji');
+  if (currentProduct.image_url) {
+    detailImgEl.innerHTML = `<img src="${currentProduct.image_url}" alt="${currentProduct.name}" style="width:100%;height:100%;object-fit:cover;display:block">`;
+  } else {
+    detailImgEl.textContent = currentProduct.emoji || '👜';
+  }
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
   document.getElementById('detailPrice').textContent = formatRp(currentProduct.price);
@@ -740,7 +750,9 @@ async function loadAdminProducts() {
   tbody.innerHTML = data.map(p => `
     <tr>
       <td>
-        <span style="font-size:18px">${p.emoji||'👜'}</span>
+        ${p.image_url
+          ? `<img src="${p.image_url}" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
+          : `<span style="font-size:24px;display:block;margin-bottom:4px">${p.emoji||'👜'}</span>`}
         <strong style="font-size:13px;display:block">${p.name}</strong>
         <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
       </td>
@@ -760,18 +772,47 @@ async function addProduct() {
   const brand = document.getElementById('pBrand').value.trim();
   const name = document.getElementById('pName').value.trim();
   const price = parseInt(document.getElementById('pPrice').value);
-  const emoji = document.getElementById('pEmoji').value.trim();
   const description = document.getElementById('pDesc').value.trim();
   const badge = document.getElementById('pBadge').value.trim();
+  const imageFile = document.getElementById('pImage').files[0];
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
+  if (!imageFile) { showToast('Foto produk wajib diupload'); return; }
 
-  const { error } = await sb.from('products').insert({ brand, name, price, emoji: emoji||'👜', description: description||null, badge: badge||null, is_active: true });
+  const btn = document.querySelector('#tab-products .btn-primary');
+  btn.disabled = true;
+  btn.textContent = 'Mengupload...';
+
+  // Upload foto ke Supabase Storage
+  const ext = imageFile.name.split('.').pop();
+  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: uploadError } = await sb.storage.from('products').upload(fileName, imageFile, { contentType: imageFile.type });
+
+  if (uploadError) {
+    showToast('Gagal upload foto');
+    console.error(uploadError);
+    btn.disabled = false;
+    btn.textContent = 'Tambah Produk';
+    return;
+  }
+
+  // Ambil public URL
+  const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
+  const image_url = urlData.publicUrl;
+
+  // Simpan ke tabel products
+  const { error } = await sb.from('products').insert({ brand, name, price, image_url, description: description||null, badge: badge||null, is_active: true });
+
+  btn.disabled = false;
+  btn.textContent = 'Tambah Produk';
+
   if (error) { showToast('Gagal menambah produk'); console.error(error); return; }
 
   showToast('Produk berhasil ditambahkan ✓');
-  ['pBrand','pName','pPrice','pEmoji','pBadge'].forEach(id => document.getElementById(id).value = '');
+  ['pBrand','pName','pPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
+  document.getElementById('pImage').value = '';
+  document.getElementById('pImagePreview').style.display = 'none';
   loadAdminProducts();
   loadProducts();
 }
@@ -796,6 +837,20 @@ async function deleteProduct(id) {
 // ── INIT ──
 updateCartCount();
 loadProducts();
+
+// Preview foto sebelum upload
+document.addEventListener('change', function(e) {
+  if (e.target.id === 'pImage') {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = function(ev) {
+      document.getElementById('pImagePreviewImg').src = ev.target.result;
+      document.getElementById('pImagePreview').style.display = 'block';
+    };
+    reader.readAsDataURL(file);
+  }
+});
 </script>
 </body>
 </html>
