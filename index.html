@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DWIFOSS — Tas & Aksesori Branded</title>
+<title>DWIE FOSS — Tas & Aksesori Branded</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
@@ -27,7 +27,9 @@
     background: var(--ivory); border-bottom: 1px solid var(--stone);
     display: flex; align-items: center; justify-content: space-between;
     padding: 0 24px; height: 60px;
+    max-width: 100%;
   }
+  .nav-inner { max-width: 1280px; margin: 0 auto; width: 100%; display: flex; align-items: center; justify-content: space-between; }
   .nav-logo { font-family: var(--serif); font-size: 22px; font-weight: 300; letter-spacing: 6px; color: var(--espresso); text-transform: uppercase; cursor: pointer; }
   .nav-right { display: flex; align-items: center; gap: 16px; }
   .nav-cart {
@@ -37,6 +39,9 @@
   }
   .nav-admin { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; background: none; border: none; font-family: var(--sans); }
   .cart-count { background: var(--caramel); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+
+  /* CONTAINER */
+  .container { max-width: 1280px; margin: 0 auto; padding: 0 16px; }
 
   /* PAGES */
   .page { display: none; }
@@ -50,13 +55,16 @@
   .hero p { font-size: 14px; color: #BFB8AD; max-width: 300px; margin: 0 auto; line-height: 1.7; font-weight: 300; }
 
   /* SECTION HEADER */
-  .section-header { padding: 48px 24px 24px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--stone); }
+  .section-header { padding: 48px 0 24px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--stone); }
   .section-title { font-family: var(--serif); font-size: 26px; font-weight: 300; letter-spacing: 1px; }
   .section-count { font-size: 12px; color: var(--warm-gray); letter-spacing: 1px; }
 
   /* PRODUCT GRID */
-  .product-grid { padding: 0 16px 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .product-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 0 48px; }
+  @media (min-width: 640px) { .product-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 900px) { .product-grid { grid-template-columns: repeat(4, 1fr); gap: 16px; } }
   .product-card { background: var(--white); cursor: pointer; transition: transform 0.2s; }
+  .product-card:hover { transform: translateY(-2px); }
   .product-card:active { transform: scale(0.98); }
   .product-img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
   .product-img-placeholder { width: 100%; aspect-ratio: 1/1; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 48px; }
@@ -198,17 +206,19 @@
 <body>
 
 <nav>
-  <span class="nav-logo" onclick="showPage('shop')">Dwifoss</span>
-  <div class="nav-right">
-    <button class="nav-admin" onclick="goAdmin()">Admin</button>
-    <button class="nav-cart" onclick="showPage('cart')">
-      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
-        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
-        <line x1="3" y1="6" x2="21" y2="6"/>
-        <path d="M16 10a4 4 0 01-8 0"/>
-      </svg>
-      <span class="cart-count" id="cartCount">0</span>
-    </button>
+  <div class="nav-inner">
+    <span class="nav-logo" onclick="showPage('shop')">Dwie Foss</span>
+    <div class="nav-right">
+      <button class="nav-admin" onclick="goAdmin()">Admin</button>
+      <button class="nav-cart" onclick="showPage('cart')">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+          <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+          <line x1="3" y1="6" x2="21" y2="6"/>
+          <path d="M16 10a4 4 0 01-8 0"/>
+        </svg>
+        <span class="cart-count" id="cartCount">0</span>
+      </button>
+    </div>
   </div>
 </nav>
 
@@ -221,11 +231,13 @@
     <h1>Tas branded <em>authentic</em> untuk kamu</h1>
     <p>Koleksi pilihan dari brand premium dunia, 100% original & bergaransi.</p>
   </div>
-  <div class="section-header">
-    <span class="section-title">Semua Produk</span>
-    <span class="section-count" id="productCount"></span>
+  <div class="container">
+    <div class="section-header">
+      <span class="section-title">Semua Produk</span>
+      <span class="section-count" id="productCount"></span>
+    </div>
+    <div class="product-grid" id="productGrid"></div>
   </div>
-  <div class="product-grid" id="productGrid"></div>
 </div>
 
 <!-- ════ PAGE: DETAIL ════ -->
