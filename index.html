@@ -84,7 +84,8 @@
   .skeleton-line.narrow { width: 40%; margin-bottom: 12px; }
 
   /* DETAIL */
-  .detail-img-placeholder { width: 100%; aspect-ratio: 1/1; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 80px; }
+  .detail-img-placeholder { width: 100%; max-width: 560px; margin: 0 auto; aspect-ratio: 1/1; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 80px; }
+  .detail-img { width: 100%; max-width: 560px; margin: 0 auto; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
   .detail-body { padding: 24px; }
   .detail-brand { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 8px; }
   .detail-name { font-family: var(--serif); font-size: 28px; font-weight: 300; line-height: 1.2; margin-bottom: 16px; }
@@ -242,15 +243,17 @@
 
 <!-- ════ PAGE: DETAIL ════ -->
 <div class="page" id="page-detail">
-  <button class="btn-back" onclick="showPage('shop')">← Kembali</button>
-  <div class="detail-img-placeholder" id="detailEmoji"></div>
-  <div class="detail-body">
-    <p class="detail-brand" id="detailBrand"></p>
-    <h2 class="detail-name" id="detailName"></h2>
-    <p class="detail-price" id="detailPrice"></p>
-    <p class="detail-desc" id="detailDesc"></p>
-    <button class="btn-primary" onclick="addToCartFromDetail()">Tambah ke Keranjang</button>
-    <button class="btn-secondary" onclick="buyNow()">Beli Sekarang</button>
+  <div class="container" style="max-width:640px">
+    <button class="btn-back" onclick="showPage('shop')">← Kembali</button>
+    <div class="detail-img-placeholder" id="detailEmoji"></div>
+    <div class="detail-body">
+      <p class="detail-brand" id="detailBrand"></p>
+      <h2 class="detail-name" id="detailName"></h2>
+      <p class="detail-price" id="detailPrice"></p>
+      <p class="detail-desc" id="detailDesc"></p>
+      <button class="btn-primary" onclick="addToCartFromDetail()">Tambah ke Keranjang</button>
+      <button class="btn-secondary" onclick="buyNow()">Beli Sekarang</button>
+    </div>
   </div>
 </div>
 
@@ -527,8 +530,10 @@ function openDetail(id) {
   currentProduct = allProducts.find(p => p.id === id);
   const detailImgEl = document.getElementById('detailEmoji');
   if (currentProduct.image_url) {
+    detailImgEl.className = 'detail-img';
     detailImgEl.innerHTML = `<img src="${currentProduct.image_url}" alt="${currentProduct.name}" style="width:100%;height:100%;object-fit:cover;display:block">`;
   } else {
+    detailImgEl.className = 'detail-img-placeholder';
     detailImgEl.textContent = currentProduct.emoji || '👜';
   }
   document.getElementById('detailBrand').textContent = currentProduct.brand;
