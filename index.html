@@ -1,0 +1,765 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DWIFOSS — Tas & Aksesori Branded</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --ivory: #F7F4EF;
+    --stone: #E8E3DA;
+    --warm-gray: #9C9189;
+    --espresso: #2C1F14;
+    --caramel: #C4955A;
+    --white: #FFFFFF;
+    --serif: 'Cormorant Garamond', serif;
+    --sans: 'DM Sans', sans-serif;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: var(--sans); background: var(--ivory); color: var(--espresso); min-height: 100vh; }
+
+  /* NAV */
+  nav {
+    position: sticky; top: 0; z-index: 100;
+    background: var(--ivory); border-bottom: 1px solid var(--stone);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px; height: 60px;
+  }
+  .nav-logo { font-family: var(--serif); font-size: 22px; font-weight: 300; letter-spacing: 6px; color: var(--espresso); text-transform: uppercase; cursor: pointer; }
+  .nav-right { display: flex; align-items: center; gap: 16px; }
+  .nav-cart {
+    display: flex; align-items: center; gap: 6px; cursor: pointer;
+    font-size: 13px; font-weight: 500; color: var(--espresso); letter-spacing: 1px;
+    background: none; border: none; padding: 8px 0;
+  }
+  .nav-admin { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; background: none; border: none; font-family: var(--sans); }
+  .cart-count { background: var(--caramel); color: white; border-radius: 50%; width: 18px; height: 18px; font-size: 10px; display: flex; align-items: center; justify-content: center; font-weight: 500; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* HERO */
+  .hero { background: var(--espresso); color: var(--ivory); padding: 72px 24px 56px; text-align: center; }
+  .hero-eyebrow { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--caramel); margin-bottom: 16px; font-weight: 400; }
+  .hero h1 { font-family: var(--serif); font-size: clamp(38px, 8vw, 64px); font-weight: 300; line-height: 1.15; margin-bottom: 20px; letter-spacing: 1px; }
+  .hero h1 em { font-style: italic; color: var(--caramel); }
+  .hero p { font-size: 14px; color: #BFB8AD; max-width: 300px; margin: 0 auto; line-height: 1.7; font-weight: 300; }
+
+  /* SECTION HEADER */
+  .section-header { padding: 48px 24px 24px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--stone); }
+  .section-title { font-family: var(--serif); font-size: 26px; font-weight: 300; letter-spacing: 1px; }
+  .section-count { font-size: 12px; color: var(--warm-gray); letter-spacing: 1px; }
+
+  /* PRODUCT GRID */
+  .product-grid { padding: 0 16px 48px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 12px; }
+  .product-card { background: var(--white); cursor: pointer; transition: transform 0.2s; }
+  .product-card:active { transform: scale(0.98); }
+  .product-img-placeholder { width: 100%; aspect-ratio: 3/4; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 48px; }
+  .product-info { padding: 12px; }
+  .product-brand { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 4px; }
+  .product-name { font-family: var(--serif); font-size: 16px; font-weight: 400; line-height: 1.3; margin-bottom: 8px; color: var(--espresso); }
+  .product-price { font-size: 13px; font-weight: 500; color: var(--espresso); }
+  .product-badge { display: inline-block; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; background: var(--caramel); color: white; padding: 2px 7px; margin-bottom: 8px; }
+
+  /* SKELETON */
+  .skeleton { background: linear-gradient(90deg, var(--stone) 25%, #ddd8cf 50%, var(--stone) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+  .skeleton-card { background: var(--white); }
+  .skeleton-img { width: 100%; aspect-ratio: 3/4; }
+  .skeleton-line { height: 10px; margin: 10px 12px 4px; }
+  .skeleton-line.wide { width: 70%; }
+  .skeleton-line.narrow { width: 40%; margin-bottom: 12px; }
+
+  /* DETAIL */
+  .detail-img-placeholder { width: 100%; aspect-ratio: 1/1; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 80px; }
+  .detail-body { padding: 24px; }
+  .detail-brand { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 8px; }
+  .detail-name { font-family: var(--serif); font-size: 28px; font-weight: 300; line-height: 1.2; margin-bottom: 16px; }
+  .detail-price { font-size: 20px; font-weight: 500; margin-bottom: 24px; }
+  .detail-desc { font-size: 13px; line-height: 1.8; color: var(--warm-gray); margin-bottom: 32px; font-weight: 300; }
+
+  /* BUTTONS */
+  .btn-primary { width: 100%; background: var(--espresso); color: var(--ivory); border: none; padding: 16px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-weight: 500; }
+  .btn-primary:hover { background: #1a1108; }
+  .btn-primary:disabled { background: var(--warm-gray); cursor: not-allowed; }
+  .btn-secondary { width: 100%; background: transparent; color: var(--espresso); border: 1px solid var(--espresso); padding: 14px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; margin-top: 10px; }
+  .btn-back { display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; padding: 16px 24px; font-family: var(--sans); }
+
+  /* CART */
+  .cart-empty { text-align: center; padding: 80px 24px; }
+  .cart-empty-icon { font-size: 48px; margin-bottom: 16px; }
+  .cart-empty h3 { font-family: var(--serif); font-size: 22px; font-weight: 300; margin-bottom: 8px; }
+  .cart-empty p { font-size: 13px; color: var(--warm-gray); margin-bottom: 32px; }
+  .cart-item { display: flex; gap: 14px; padding: 20px 24px; border-bottom: 1px solid var(--stone); }
+  .cart-item-img { width: 72px; height: 90px; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 28px; flex-shrink: 0; }
+  .cart-item-info { flex: 1; }
+  .cart-item-brand { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 4px; }
+  .cart-item-name { font-family: var(--serif); font-size: 16px; font-weight: 400; margin-bottom: 8px; line-height: 1.3; }
+  .cart-item-price { font-size: 13px; font-weight: 500; }
+  .cart-item-remove { background: none; border: none; color: var(--warm-gray); cursor: pointer; font-size: 18px; line-height: 1; align-self: flex-start; }
+  .cart-summary { padding: 24px; background: var(--white); margin: 16px 24px; }
+  .cart-summary-row { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 10px; color: var(--warm-gray); }
+  .cart-summary-total { display: flex; justify-content: space-between; font-size: 16px; font-weight: 500; border-top: 1px solid var(--stone); padding-top: 12px; margin-top: 4px; }
+  .cart-actions { padding: 0 24px 48px; }
+
+  /* CHECKOUT */
+  .checkout-wrap { padding: 0 24px 48px; }
+  .checkout-section { margin-bottom: 32px; }
+  .checkout-section h3 { font-family: var(--serif); font-size: 20px; font-weight: 400; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--stone); }
+  .form-group { margin-bottom: 14px; }
+  .form-label { display: block; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 6px; font-weight: 400; }
+  .form-input { width: 100%; padding: 13px 14px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; }
+  .form-input:focus { border-color: var(--caramel); }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .bank-box { background: var(--white); border: 1px solid var(--stone); padding: 20px; margin-top: 8px; }
+  .bank-box-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 12px; }
+  .bank-name { font-family: var(--serif); font-size: 20px; font-weight: 400; margin-bottom: 4px; }
+  .bank-number { font-size: 22px; font-weight: 500; letter-spacing: 2px; color: var(--espresso); margin-bottom: 4px; }
+  .bank-holder { font-size: 12px; color: var(--warm-gray); }
+  .bank-note { margin-top: 14px; font-size: 12px; color: var(--warm-gray); line-height: 1.6; padding-top: 14px; border-top: 1px solid var(--stone); }
+  .order-mini-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: var(--warm-gray); }
+  .order-mini-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 500; border-top: 1px solid var(--stone); padding-top: 12px; margin-top: 8px; }
+
+  /* SUCCESS */
+  .success-wrap { text-align: center; padding: 64px 24px 48px; }
+  .success-icon { width: 64px; height: 64px; border: 1.5px solid var(--caramel); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 24px; }
+  .success-wrap h2 { font-family: var(--serif); font-size: 28px; font-weight: 300; margin-bottom: 12px; }
+  .success-wrap p { font-size: 13px; color: var(--warm-gray); line-height: 1.7; margin-bottom: 32px; max-width: 320px; margin-left: auto; margin-right: auto; }
+  .success-bank-box { background: var(--espresso); color: var(--ivory); padding: 28px 24px; margin-bottom: 32px; text-align: left; }
+  .success-bank-box .label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--caramel); margin-bottom: 12px; }
+  .success-bank-box .amount { font-family: var(--serif); font-size: 32px; font-weight: 300; margin-bottom: 20px; }
+  .success-bank-box .bank-detail { font-size: 13px; color: #BFB8AD; line-height: 1.8; }
+  .success-bank-box .bank-detail strong { color: var(--ivory); font-weight: 500; }
+
+  /* ADMIN */
+  .admin-header { background: var(--espresso); color: var(--ivory); padding: 24px; }
+  .admin-header h2 { font-family: var(--serif); font-size: 24px; font-weight: 300; letter-spacing: 2px; margin-bottom: 4px; }
+  .admin-header p { font-size: 12px; color: #BFB8AD; }
+  .admin-tabs { display: flex; border-bottom: 1px solid var(--stone); background: var(--white); }
+  .admin-tab { flex: 1; padding: 14px; text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none; background: none; font-family: var(--sans); color: var(--warm-gray); border-bottom: 2px solid transparent; }
+  .admin-tab.active { color: var(--espresso); border-bottom-color: var(--caramel); font-weight: 500; }
+  .admin-content { padding: 24px; }
+  .admin-section { display: none; }
+  .admin-section.active { display: block; }
+
+  /* ADMIN PRODUCT FORM */
+  .admin-form-card { background: var(--white); border: 1px solid var(--stone); padding: 20px; margin-bottom: 24px; }
+  .admin-form-card h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--stone); }
+  .btn-small { padding: 8px 16px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; border: none; cursor: pointer; font-family: var(--sans); font-weight: 500; }
+  .btn-danger { background: #c0392b; color: white; }
+  .btn-success { background: #27ae60; color: white; }
+  .btn-warning { background: var(--caramel); color: white; }
+
+  /* ADMIN TABLE */
+  .admin-table-wrap { overflow-x: auto; }
+  .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .admin-table th { text-align: left; padding: 10px 12px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); border-bottom: 1px solid var(--stone); font-weight: 400; }
+  .admin-table td { padding: 12px; border-bottom: 1px solid var(--stone); vertical-align: middle; }
+  .admin-table tr:last-child td { border-bottom: none; }
+  .status-badge { display: inline-block; padding: 3px 8px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px; }
+  .status-pending { background: #FEF3C7; color: #92400E; }
+  .status-confirmed { background: #D1FAE5; color: #065F46; }
+  .status-shipped { background: #DBEAFE; color: #1E40AF; }
+
+  /* LOGIN */
+  .login-wrap { max-width: 360px; margin: 80px auto; padding: 0 24px; }
+  .login-wrap h2 { font-family: var(--serif); font-size: 28px; font-weight: 300; margin-bottom: 8px; text-align: center; }
+  .login-wrap p { font-size: 13px; color: var(--warm-gray); text-align: center; margin-bottom: 32px; }
+  .login-error { font-size: 12px; color: #c0392b; margin-top: 8px; text-align: center; }
+
+  /* PAGE TITLE */
+  .page-title-bar { padding: 20px 24px 16px; border-bottom: 1px solid var(--stone); }
+  .page-title-bar h2 { font-family: var(--serif); font-size: 24px; font-weight: 300; letter-spacing: 1px; }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--espresso); color: var(--ivory); padding: 12px 24px; font-size: 13px; letter-spacing: 1px; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 48px 24px; color: var(--warm-gray); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-logo" onclick="showPage('shop')">Dwifoss</span>
+  <div class="nav-right">
+    <button class="nav-admin" onclick="goAdmin()">Admin</button>
+    <button class="nav-cart" onclick="showPage('cart')">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
+        <line x1="3" y1="6" x2="21" y2="6"/>
+        <path d="M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <span class="cart-count" id="cartCount">0</span>
+    </button>
+  </div>
+</nav>
+
+<div class="toast" id="toast"></div>
+
+<!-- ════ PAGE: SHOP ════ -->
+<div class="page active" id="page-shop">
+  <div class="hero">
+    <p class="hero-eyebrow">Authenticated Luxury</p>
+    <h1>Tas branded <em>authentic</em> untuk kamu</h1>
+    <p>Koleksi pilihan dari brand premium dunia, 100% original & bergaransi.</p>
+  </div>
+  <div class="section-header">
+    <span class="section-title">Semua Produk</span>
+    <span class="section-count" id="productCount"></span>
+  </div>
+  <div class="product-grid" id="productGrid"></div>
+</div>
+
+<!-- ════ PAGE: DETAIL ════ -->
+<div class="page" id="page-detail">
+  <button class="btn-back" onclick="showPage('shop')">← Kembali</button>
+  <div class="detail-img-placeholder" id="detailEmoji"></div>
+  <div class="detail-body">
+    <p class="detail-brand" id="detailBrand"></p>
+    <h2 class="detail-name" id="detailName"></h2>
+    <p class="detail-price" id="detailPrice"></p>
+    <p class="detail-desc" id="detailDesc"></p>
+    <button class="btn-primary" onclick="addToCartFromDetail()">Tambah ke Keranjang</button>
+    <button class="btn-secondary" onclick="buyNow()">Beli Sekarang</button>
+  </div>
+</div>
+
+<!-- ════ PAGE: CART ════ -->
+<div class="page" id="page-cart">
+  <button class="btn-back" onclick="showPage('shop')">← Lanjut Belanja</button>
+  <div class="page-title-bar"><h2>Keranjang</h2></div>
+  <div id="cartContent"></div>
+</div>
+
+<!-- ════ PAGE: CHECKOUT ════ -->
+<div class="page" id="page-checkout">
+  <button class="btn-back" onclick="showPage('cart')">← Keranjang</button>
+  <div class="page-title-bar"><h2>Checkout</h2></div>
+  <div class="checkout-wrap">
+    <div class="checkout-section">
+      <h3>Ringkasan Pesanan</h3>
+      <div id="checkoutSummary"></div>
+    </div>
+    <div class="checkout-section">
+      <h3>Informasi Pembeli</h3>
+      <div class="form-group">
+        <label class="form-label">Nama Lengkap *</label>
+        <input class="form-input" id="fieldName" type="text" placeholder="Masukkan nama lengkap">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Nomor WhatsApp *</label>
+        <input class="form-input" id="fieldPhone" type="tel" placeholder="08xxxxxxxxxx">
+      </div>
+      <div class="form-group">
+        <label class="form-label">Email</label>
+        <input class="form-input" id="fieldEmail" type="email" placeholder="email@kamu.com">
+      </div>
+    </div>
+    <div class="checkout-section">
+      <h3>Alamat Pengiriman</h3>
+      <div class="form-group">
+        <label class="form-label">Alamat Lengkap *</label>
+        <input class="form-input" id="fieldAddress" type="text" placeholder="Jl. nama jalan, no. rumah">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Kota *</label>
+          <input class="form-input" id="fieldCity" type="text" placeholder="Jakarta">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kode Pos</label>
+          <input class="form-input" id="fieldZip" type="text" placeholder="12345">
+        </div>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Provinsi *</label>
+        <input class="form-input" id="fieldProvince" type="text" placeholder="DKI Jakarta">
+      </div>
+    </div>
+    <div class="checkout-section">
+      <h3>Pembayaran</h3>
+      <div class="bank-box">
+        <p class="bank-box-label">Transfer Bank</p>
+        <p class="bank-name">BCA</p>
+        <p class="bank-number">1234 5678 90</p>
+        <p class="bank-holder">a/n Dwifoss Indonesia</p>
+        <p class="bank-note">Setelah klik "Buat Pesanan", transfer sesuai total ke rekening di atas. Kirim bukti transfer via WhatsApp ke nomor kami untuk konfirmasi.</p>
+      </div>
+    </div>
+    <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Buat Pesanan</button>
+  </div>
+</div>
+
+<!-- ════ PAGE: SUCCESS ════ -->
+<div class="page" id="page-success">
+  <div class="success-wrap">
+    <div class="success-icon">✓</div>
+    <h2>Pesanan Diterima!</h2>
+    <p>Terima kasih telah berbelanja di Dwifoss. Silakan transfer sesuai total di bawah dan kirim bukti transfer via WhatsApp.</p>
+    <div class="success-bank-box">
+      <p class="label">Total Transfer</p>
+      <p class="amount" id="successTotal"></p>
+      <div class="bank-detail">
+        <strong>BCA — 1234 5678 90</strong><br>
+        a/n Dwifoss Indonesia<br><br>
+        WhatsApp konfirmasi:<br>
+        <strong>+62 812-3456-7890</strong>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="backToShop()" style="max-width:280px;margin:0 auto;display:block;">Kembali Belanja</button>
+  </div>
+</div>
+
+<!-- ════ PAGE: ADMIN LOGIN ════ -->
+<div class="page" id="page-admin-login">
+  <div class="login-wrap">
+    <h2>Admin Panel</h2>
+    <p>Masuk untuk mengelola produk dan pesanan</p>
+    <div class="form-group">
+      <label class="form-label">Email</label>
+      <input class="form-input" id="adminEmail" type="email" placeholder="admin@dwifoss.com">
+    </div>
+    <div class="form-group">
+      <label class="form-label">Password</label>
+      <input class="form-input" id="adminPassword" type="password" placeholder="••••••••">
+    </div>
+    <p class="login-error" id="loginError"></p>
+    <br>
+    <button class="btn-primary" onclick="adminLogin()">Masuk</button>
+    <button class="btn-back" onclick="showPage('shop')" style="margin-top:12px;justify-content:center;">← Kembali ke Toko</button>
+  </div>
+</div>
+
+<!-- ════ PAGE: ADMIN PANEL ════ -->
+<div class="page" id="page-admin">
+  <div class="admin-header">
+    <h2>Dwifoss Admin</h2>
+    <p id="adminUserEmail"></p>
+  </div>
+  <div class="admin-tabs">
+    <button class="admin-tab active" onclick="switchAdminTab('orders')">Pesanan</button>
+    <button class="admin-tab" onclick="switchAdminTab('products')">Produk</button>
+    <button class="admin-tab" onclick="adminLogout()">Keluar</button>
+  </div>
+  <div class="admin-content">
+
+    <!-- TAB: ORDERS -->
+    <div class="admin-section active" id="tab-orders">
+      <div id="ordersList"></div>
+    </div>
+
+    <!-- TAB: PRODUCTS -->
+    <div class="admin-section" id="tab-products">
+      <!-- Form tambah produk -->
+      <div class="admin-form-card">
+        <h3>Tambah Produk Baru</h3>
+        <div class="form-group">
+          <label class="form-label">Brand</label>
+          <input class="form-input" id="pBrand" placeholder="Tory Burch">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Nama Produk</label>
+          <input class="form-input" id="pName" placeholder="Nama tas">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Harga (Rp)</label>
+          <input class="form-input" id="pPrice" type="number" placeholder="2500000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Emoji / Icon</label>
+          <input class="form-input" id="pEmoji" placeholder="🟤">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Deskripsi</label>
+          <input class="form-input" id="pDesc" placeholder="Deskripsi produk...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Badge (opsional)</label>
+          <input class="form-input" id="pBadge" placeholder="New / Sale / dll">
+        </div>
+        <br>
+        <button class="btn-primary" onclick="addProduct()">Tambah Produk</button>
+      </div>
+
+      <!-- Daftar produk -->
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Produk</th>
+              <th>Harga</th>
+              <th>Status</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="productsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ── SUPABASE INIT ──
+const { createClient } = supabase;
+const sb = createClient(
+  'https://ehjnkcvozjdlscuqfqzb.supabase.co',
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoam5rY3ZvempkbHNjdXFmcXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMzMyMDYsImV4cCI6MjA5NzkwOTIwNn0.N0OQCgYDtw2iOWZk3FbyqAnXgpv12pI8H3titSoWZg0'
+);
+
+// ── STATE ──
+let cart = JSON.parse(localStorage.getItem('dwifoss_cart') || '[]');
+let currentProduct = null;
+let allProducts = [];
+
+// ── FORMAT RUPIAH ──
+function formatRp(n) {
+  return 'Rp ' + Number(n).toLocaleString('id-ID');
+}
+
+// ── SAVE CART ──
+function saveCart() {
+  localStorage.setItem('dwifoss_cart', JSON.stringify(cart));
+  updateCartCount();
+}
+
+function updateCartCount() {
+  const total = cart.reduce((s, i) => s + i.qty, 0);
+  document.getElementById('cartCount').textContent = total;
+}
+
+// ── SHOW PAGE ──
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  window.scrollTo(0, 0);
+  if (name === 'cart') renderCart();
+  if (name === 'checkout') renderCheckoutSummary();
+}
+
+// ── TOAST ──
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// ── SKELETON LOADING ──
+function renderSkeletons() {
+  const grid = document.getElementById('productGrid');
+  grid.innerHTML = Array(6).fill(`
+    <div class="skeleton-card">
+      <div class="skeleton skeleton-img"></div>
+      <div class="skeleton skeleton-line wide"></div>
+      <div class="skeleton skeleton-line narrow"></div>
+    </div>
+  `).join('');
+}
+
+// ── LOAD & RENDER PRODUCTS ──
+async function loadProducts() {
+  renderSkeletons();
+  const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
+  if (error) { showToast('Gagal memuat produk'); return; }
+  allProducts = data;
+  renderProducts(data);
+}
+
+function renderProducts(products) {
+  const grid = document.getElementById('productGrid');
+  document.getElementById('productCount').textContent = products.length + ' produk';
+  if (products.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:span 2">Belum ada produk</div>';
+    return;
+  }
+  grid.innerHTML = products.map(p => `
+    <div class="product-card" onclick="openDetail('${p.id}')">
+      <div class="product-img-placeholder">${p.emoji || '👜'}</div>
+      <div class="product-info">
+        ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
+        <p class="product-brand">${p.brand}</p>
+        <p class="product-name">${p.name}</p>
+        <p class="product-price">${formatRp(p.price)}</p>
+      </div>
+    </div>
+  `).join('');
+}
+
+// ── DETAIL ──
+function openDetail(id) {
+  currentProduct = allProducts.find(p => p.id === id);
+  document.getElementById('detailEmoji').textContent = currentProduct.emoji || '👜';
+  document.getElementById('detailBrand').textContent = currentProduct.brand;
+  document.getElementById('detailName').textContent = currentProduct.name;
+  document.getElementById('detailPrice').textContent = formatRp(currentProduct.price);
+  document.getElementById('detailDesc').textContent = currentProduct.description || '';
+  showPage('detail');
+}
+
+// ── CART ACTIONS ──
+function addToCart(product) {
+  const existing = cart.find(i => i.id === product.id);
+  if (existing) { existing.qty += 1; }
+  else { cart.push({ id: product.id, brand: product.brand, name: product.name, price: product.price, emoji: product.emoji || '👜', qty: 1 }); }
+  saveCart();
+}
+
+function addToCartFromDetail() {
+  addToCart(currentProduct);
+  showToast('Ditambahkan ke keranjang ✓');
+}
+
+function buyNow() {
+  addToCart(currentProduct);
+  showPage('checkout');
+}
+
+function removeFromCart(id) {
+  cart = cart.filter(i => i.id !== id);
+  saveCart();
+  renderCart();
+}
+
+// ── RENDER CART ──
+function renderCart() {
+  const el = document.getElementById('cartContent');
+  if (cart.length === 0) {
+    el.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛍</div><h3>Keranjang masih kosong</h3><p>Tambahkan produk favoritmu.</p><button class="btn-primary" style="max-width:200px;margin:0 auto;display:block" onclick="showPage('shop')">Mulai Belanja</button></div>`;
+    return;
+  }
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  el.innerHTML = cart.map(i => `
+    <div class="cart-item">
+      <div class="cart-item-img">${i.emoji}</div>
+      <div class="cart-item-info">
+        <p class="cart-item-brand">${i.brand}</p>
+        <p class="cart-item-name">${i.name}</p>
+        <p class="cart-item-price">${formatRp(i.price)}</p>
+        ${i.qty > 1 ? `<p style="font-size:12px;color:var(--warm-gray);margin-top:4px">x${i.qty}</p>` : ''}
+      </div>
+      <button class="cart-item-remove" onclick="removeFromCart('${i.id}')">×</button>
+    </div>
+  `).join('') + `
+    <div class="cart-summary">
+      <div class="cart-summary-row"><span>Subtotal</span><span>${formatRp(subtotal)}</span></div>
+      <div class="cart-summary-row"><span>Ongkos kirim</span><span>Dikonfirmasi via WA</span></div>
+      <div class="cart-summary-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>
+    </div>
+    <div class="cart-actions">
+      <button class="btn-primary" onclick="showPage('checkout')">Lanjut ke Checkout</button>
+    </div>`;
+}
+
+// ── RENDER CHECKOUT SUMMARY ──
+function renderCheckoutSummary() {
+  const el = document.getElementById('checkoutSummary');
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  el.innerHTML = cart.map(i => `
+    <div class="order-mini-item"><span>${i.name}${i.qty > 1 ? ` x${i.qty}` : ''}</span><span>${formatRp(i.price * i.qty)}</span></div>
+  `).join('') + `<div class="order-mini-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>`;
+}
+
+// ── PLACE ORDER ──
+async function placeOrder() {
+  const name = document.getElementById('fieldName').value.trim();
+  const phone = document.getElementById('fieldPhone').value.trim();
+  const email = document.getElementById('fieldEmail').value.trim();
+  const address = document.getElementById('fieldAddress').value.trim();
+  const city = document.getElementById('fieldCity').value.trim();
+  const zip = document.getElementById('fieldZip').value.trim();
+  const province = document.getElementById('fieldProvince').value.trim();
+
+  if (!name || !phone || !address || !city || !province) {
+    showToast('Lengkapi semua field yang wajib (*)');
+    return;
+  }
+
+  const btn = document.getElementById('btnOrder');
+  btn.disabled = true;
+  btn.textContent = 'Memproses...';
+
+  const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+
+  const { error } = await sb.from('orders').insert({
+    customer_name: name,
+    customer_phone: phone,
+    customer_email: email || null,
+    address,
+    city,
+    province,
+    zip_code: zip || null,
+    items: cart,
+    total: subtotal,
+    status: 'pending'
+  });
+
+  btn.disabled = false;
+  btn.textContent = 'Buat Pesanan';
+
+  if (error) { showToast('Gagal membuat pesanan. Coba lagi.'); console.error(error); return; }
+
+  document.getElementById('successTotal').textContent = formatRp(subtotal);
+  cart = [];
+  saveCart();
+  showPage('success');
+}
+
+function backToShop() { showPage('shop'); }
+
+// ── ADMIN ──
+async function goAdmin() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) { showAdminPanel(session.user); }
+  else { showPage('admin-login'); }
+}
+
+async function adminLogin() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  document.getElementById('loginError').textContent = '';
+
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { document.getElementById('loginError').textContent = 'Email atau password salah.'; return; }
+  showAdminPanel(data.user);
+}
+
+async function adminLogout() {
+  await sb.auth.signOut();
+  showPage('shop');
+}
+
+function showAdminPanel(user) {
+  document.getElementById('adminUserEmail').textContent = user.email;
+  showPage('admin');
+  loadAdminOrders();
+  loadAdminProducts();
+}
+
+function switchAdminTab(tab) {
+  document.querySelectorAll('.admin-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── ADMIN: ORDERS ──
+async function loadAdminOrders() {
+  const el = document.getElementById('ordersList');
+  el.innerHTML = '<div class="empty-state">Memuat pesanan...</div>';
+
+  const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false });
+  if (error) { el.innerHTML = '<div class="empty-state">Gagal memuat pesanan</div>'; return; }
+  if (data.length === 0) { el.innerHTML = '<div class="empty-state">Belum ada pesanan masuk</div>'; return; }
+
+  el.innerHTML = `<div class="admin-table-wrap"><table class="admin-table">
+    <thead><tr><th>Tanggal</th><th>Nama</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
+    <tbody>
+      ${data.map(o => `
+        <tr>
+          <td style="font-size:11px;color:var(--warm-gray)">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
+          <td>
+            <strong style="font-size:13px">${o.customer_name}</strong><br>
+            <span style="font-size:11px;color:var(--warm-gray)">${o.customer_phone}</span>
+          </td>
+          <td style="font-weight:500">${formatRp(o.total)}</td>
+          <td><span class="status-badge status-${o.status}">${o.status}</span></td>
+          <td>
+            <select onchange="updateOrderStatus('${o.id}', this.value)" style="font-size:11px;padding:4px;border:1px solid var(--stone);background:white;font-family:var(--sans)">
+              <option ${o.status==='pending'?'selected':''}>pending</option>
+              <option ${o.status==='confirmed'?'selected':''}>confirmed</option>
+              <option ${o.status==='shipped'?'selected':''}>shipped</option>
+            </select>
+          </td>
+        </tr>
+      `).join('')}
+    </tbody>
+  </table></div>`;
+}
+
+async function updateOrderStatus(id, status) {
+  const { error } = await sb.from('orders').update({ status }).eq('id', id);
+  if (error) { showToast('Gagal update status'); return; }
+  showToast('Status diperbarui ✓');
+  loadAdminOrders();
+}
+
+// ── ADMIN: PRODUCTS ──
+async function loadAdminProducts() {
+  const tbody = document.getElementById('productsTableBody');
+  tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Memuat...</td></tr>';
+
+  const { data, error } = await sb.from('products').select('*').order('created_at', { ascending: false });
+  if (error) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Gagal memuat</td></tr>'; return; }
+  allProducts = data;
+
+  if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada produk</td></tr>'; return; }
+
+  tbody.innerHTML = data.map(p => `
+    <tr>
+      <td>
+        <span style="font-size:18px">${p.emoji||'👜'}</span>
+        <strong style="font-size:13px;display:block">${p.name}</strong>
+        <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
+      </td>
+      <td style="font-weight:500;font-size:13px">${formatRp(p.price)}</td>
+      <td><span class="status-badge ${p.is_active ? 'status-confirmed' : 'status-pending'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
+      <td>
+        <button class="btn-small btn-warning" onclick="toggleProduct('${p.id}', ${p.is_active})" style="margin-bottom:4px;display:block">
+          ${p.is_active ? 'Nonaktifkan' : 'Aktifkan'}
+        </button>
+        <button class="btn-small btn-danger" onclick="deleteProduct('${p.id}')">Hapus</button>
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function addProduct() {
+  const brand = document.getElementById('pBrand').value.trim();
+  const name = document.getElementById('pName').value.trim();
+  const price = parseInt(document.getElementById('pPrice').value);
+  const emoji = document.getElementById('pEmoji').value.trim();
+  const description = document.getElementById('pDesc').value.trim();
+  const badge = document.getElementById('pBadge').value.trim();
+
+  if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
+
+  const { error } = await sb.from('products').insert({ brand, name, price, emoji: emoji||'👜', description: description||null, badge: badge||null, is_active: true });
+  if (error) { showToast('Gagal menambah produk'); console.error(error); return; }
+
+  showToast('Produk berhasil ditambahkan ✓');
+  ['pBrand','pName','pPrice','pEmoji','pDesc','pBadge'].forEach(id => document.getElementById(id).value = '');
+  loadAdminProducts();
+  loadProducts();
+}
+
+async function toggleProduct(id, currentActive) {
+  const { error } = await sb.from('products').update({ is_active: !currentActive }).eq('id', id);
+  if (error) { showToast('Gagal mengubah status'); return; }
+  showToast('Status produk diperbarui ✓');
+  loadAdminProducts();
+  loadProducts();
+}
+
+async function deleteProduct(id) {
+  if (!confirm('Hapus produk ini?')) return;
+  const { error } = await sb.from('products').delete().eq('id', id);
+  if (error) { showToast('Gagal menghapus produk'); return; }
+  showToast('Produk dihapus ✓');
+  loadAdminProducts();
+  loadProducts();
+}
+
+// ── INIT ──
+updateCartCount();
+loadProducts();
+</script>
+</body>
+</html>
