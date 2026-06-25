@@ -181,6 +181,17 @@
 
   /* EMPTY STATE */
   .empty-state { text-align: center; padding: 48px 24px; color: var(--warm-gray); font-size: 13px; }
+
+  /* TEXTAREA */
+  .form-textarea { width: 100%; padding: 13px 14px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; resize: vertical; min-height: 100px; line-height: 1.6; }
+  .form-textarea:focus { border-color: var(--caramel); }
+
+  /* ORDER DETAIL */
+  .order-detail-box { background: var(--ivory); border: 1px solid var(--stone); padding: 14px; margin-top: 8px; font-size: 12px; line-height: 1.8; color: var(--warm-gray); display: none; }
+  .order-detail-box.open { display: block; }
+  .order-detail-box strong { color: var(--espresso); }
+  .order-items-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--stone); }
+  .order-item-row { display: flex; justify-content: space-between; margin-bottom: 4px; }
 </style>
 </head>
 <body>
@@ -377,7 +388,7 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
-          <input class="form-input" id="pDesc" placeholder="Deskripsi produk...">
+          <textarea class="form-textarea" id="pDesc" placeholder="Deskripsi produk..."></textarea>
         </div>
         <div class="form-group">
           <label class="form-label">Badge (opsional)</label>
@@ -662,26 +673,50 @@ async function loadAdminOrders() {
   el.innerHTML = `<div class="admin-table-wrap"><table class="admin-table">
     <thead><tr><th>Tanggal</th><th>Nama</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
     <tbody>
-      ${data.map(o => `
+      ${data.map(o => {
+        const items = Array.isArray(o.items) ? o.items : [];
+        const itemsHtml = items.map(i => `
+          <div class="order-item-row">
+            <span>${i.emoji||''} ${i.brand} — ${i.name}${i.qty>1?' x'+i.qty:''}</span>
+            <span>${formatRp(i.price * i.qty)}</span>
+          </div>`).join('');
+        return `
         <tr>
           <td style="font-size:11px;color:var(--warm-gray)">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
           <td>
             <strong style="font-size:13px">${o.customer_name}</strong><br>
-            <span style="font-size:11px;color:var(--warm-gray)">${o.customer_phone}</span>
+            <span style="font-size:11px;color:var(--warm-gray)">${o.customer_phone}</span><br>
+            ${o.customer_email ? `<span style="font-size:11px;color:var(--warm-gray)">${o.customer_email}</span>` : ''}
           </td>
-          <td style="font-weight:500">${formatRp(o.total)}</td>
+          <td style="font-weight:500;font-size:13px">${formatRp(o.total)}</td>
           <td><span class="status-badge status-${o.status}">${o.status}</span></td>
           <td>
-            <select onchange="updateOrderStatus('${o.id}', this.value)" style="font-size:11px;padding:4px;border:1px solid var(--stone);background:white;font-family:var(--sans)">
+            <select onchange="updateOrderStatus('${o.id}', this.value)" style="font-size:11px;padding:4px;border:1px solid var(--stone);background:white;font-family:var(--sans);margin-bottom:6px;display:block">
               <option ${o.status==='pending'?'selected':''}>pending</option>
               <option ${o.status==='confirmed'?'selected':''}>confirmed</option>
               <option ${o.status==='shipped'?'selected':''}>shipped</option>
             </select>
+            <button class="btn-small btn-warning" onclick="toggleOrderDetail('detail-${o.id}')">Detail</button>
           </td>
         </tr>
-      `).join('')}
+        <tr>
+          <td colspan="5" style="padding:0 12px">
+            <div class="order-detail-box" id="detail-${o.id}">
+              <strong>Alamat Pengiriman:</strong><br>
+              ${o.address}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
+              <strong>Produk yang Dipesan:</strong>
+              <div class="order-items-list">${itemsHtml}</div>
+            </div>
+          </td>
+        </tr>`;
+      }).join('')}
     </tbody>
   </table></div>`;
+}
+
+function toggleOrderDetail(id) {
+  const el = document.getElementById(id);
+  el.classList.toggle('open');
 }
 
 async function updateOrderStatus(id, status) {
@@ -735,7 +770,8 @@ async function addProduct() {
   if (error) { showToast('Gagal menambah produk'); console.error(error); return; }
 
   showToast('Produk berhasil ditambahkan ✓');
-  ['pBrand','pName','pPrice','pEmoji','pDesc','pBadge'].forEach(id => document.getElementById(id).value = '');
+  ['pBrand','pName','pPrice','pEmoji','pBadge'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('pDesc').value = '';
   loadAdminProducts();
   loadProducts();
 }
