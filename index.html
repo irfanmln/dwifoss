@@ -161,15 +161,34 @@
   .order-mini-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 500; border-top: 1px solid var(--stone); padding-top: 12px; margin-top: 8px; }
 
   /* SUCCESS */
-  .success-wrap { text-align: center; padding: 64px 24px 48px; }
-  .success-icon { width: 64px; height: 64px; border: 1.5px solid var(--caramel); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 28px; margin: 0 auto 24px; }
-  .success-wrap h2 { font-family: var(--serif); font-size: 28px; font-weight: 300; margin-bottom: 12px; }
-  .success-wrap p { font-size: 13px; color: var(--warm-gray); line-height: 1.7; margin-bottom: 32px; max-width: 320px; margin-left: auto; margin-right: auto; }
-  .success-bank-box { background: var(--espresso); color: var(--ivory); padding: 28px 24px; margin-bottom: 32px; text-align: left; }
-  .success-bank-box .label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--caramel); margin-bottom: 12px; }
-  .success-bank-box .amount { font-family: var(--serif); font-size: 32px; font-weight: 300; margin-bottom: 20px; }
-  .success-bank-box .bank-detail { font-size: 13px; color: #BFB8AD; line-height: 1.8; }
-  .success-bank-box .bank-detail strong { color: var(--ivory); font-weight: 500; }
+  .success-wrap { max-width: 680px; margin: 0 auto; padding: 40px 24px 64px; }
+  .success-header { display: flex; align-items: center; gap: 16px; margin-bottom: 32px; padding-bottom: 24px; border-bottom: 1px solid var(--stone); }
+  .success-check { width: 48px; height: 48px; border: 1.5px solid var(--caramel); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; flex-shrink: 0; color: var(--caramel); }
+  .success-header-text h2 { font-family: var(--serif); font-size: 26px; font-weight: 300; margin-bottom: 4px; }
+  .success-header-text p { font-size: 12px; color: var(--warm-gray); }
+  .success-order-no { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--caramel); margin-bottom: 4px; }
+
+  .success-section { margin-bottom: 28px; }
+  .success-section-title { font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid var(--stone); }
+
+  .success-item { display: flex; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--stone); }
+  .success-item:last-child { border-bottom: none; }
+  .success-item-img { width: 56px; height: 56px; background: var(--stone); display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0; object-fit: cover; }
+  .success-item-info { flex: 1; }
+  .success-item-brand { font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 2px; }
+  .success-item-name { font-family: var(--serif); font-size: 15px; margin-bottom: 4px; }
+  .success-item-price { font-size: 13px; font-weight: 500; }
+
+  .success-bank-highlight { background: var(--espresso); color: var(--ivory); padding: 20px 24px; margin-bottom: 28px; }
+  .success-bank-highlight .label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--caramel); margin-bottom: 8px; }
+  .success-bank-highlight .amount { font-family: var(--serif); font-size: 28px; font-weight: 300; margin-bottom: 16px; }
+  .success-bank-highlight .bank-detail { font-size: 13px; color: #BFB8AD; line-height: 1.8; }
+  .success-bank-highlight .bank-detail strong { color: var(--ivory); }
+
+  .success-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 480px) { .success-detail-grid { grid-template-columns: 1fr; } }
+  .success-detail-block p { font-size: 13px; line-height: 1.8; color: var(--warm-gray); }
+  .success-detail-block strong { color: var(--espresso); font-weight: 500; }
 
   /* ADMIN */
   .admin-header { background: var(--espresso); color: var(--ivory); padding: 24px; }
@@ -398,20 +417,56 @@
 <!-- ════ PAGE: SUCCESS ════ -->
 <div class="page" id="page-success">
   <div class="success-wrap">
-    <div class="success-icon">✓</div>
-    <h2>Pesanan Diterima!</h2>
-    <p>Terima kasih telah berbelanja di Dwifoss. Silakan transfer sesuai total di bawah dan kirim bukti transfer via WhatsApp.</p>
-    <div class="success-bank-box">
+    <div class="success-header">
+      <div class="success-check">✓</div>
+      <div class="success-header-text">
+        <p class="success-order-no" id="successOrderNo"></p>
+        <h2 id="successGreeting">Pesanan Diterima!</h2>
+        <p>Terima kasih telah berbelanja di Dwie Foss.</p>
+      </div>
+    </div>
+
+    <!-- Transfer Info -->
+    <div class="success-bank-highlight">
       <p class="label">Total Transfer</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
         <strong>BCA — 1234 5678 90</strong><br>
-        a/n Dwifoss Indonesia<br><br>
-        WhatsApp konfirmasi:<br>
-        <strong>+62 812-3456-7890</strong>
+        a/n Dwie Foss Indonesia<br><br>
+        Konfirmasi pembayaran via WhatsApp:<br>
+        <strong>+62 812-3456-7890</strong><br><br>
+        Sertakan nomor pesanan kamu saat konfirmasi.
       </div>
     </div>
-    <button class="btn-primary" onclick="backToShop()" style="max-width:280px;margin:0 auto;display:block;">Kembali Belanja</button>
+
+    <!-- Produk dibeli -->
+    <div class="success-section">
+      <p class="success-section-title">Produk yang Dipesan</p>
+      <div id="successItems"></div>
+      <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:13px;color:var(--warm-gray)">
+        <span>Ongkos kirim</span><span>Dikonfirmasi via WA</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:500;border-top:1px solid var(--stone)">
+        <span>Total</span><span id="successTotal2"></span>
+      </div>
+    </div>
+
+    <!-- Detail Pesanan -->
+    <div class="success-section">
+      <p class="success-section-title">Detail Pesanan</p>
+      <div class="success-detail-grid">
+        <div class="success-detail-block">
+          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Alamat Pengiriman</p>
+          <p id="successAddress"></p>
+        </div>
+        <div class="success-detail-block">
+          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Informasi Kontak</p>
+          <p id="successContact"></p>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn-primary" onclick="backToShop()" style="max-width:280px;display:block;">Kembali Belanja</button>
   </div>
 </div>
 
@@ -779,18 +834,18 @@ async function placeOrder() {
   btn.textContent = 'Memproses...';
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
+  const orderNo = 'DF-' + Date.now().toString(36).toUpperCase().slice(-6);
 
   const { error } = await sb.from('orders').insert({
     customer_name: name,
     customer_phone: phone,
     customer_email: email || null,
-    address,
-    city,
-    province,
+    address, city, province,
     zip_code: zip || null,
     items: cart,
     total: subtotal,
-    status: 'pending'
+    status: 'pending',
+    order_no: orderNo
   });
 
   btn.disabled = false;
@@ -798,7 +853,35 @@ async function placeOrder() {
 
   if (error) { showToast('Gagal membuat pesanan. Coba lagi.'); console.error(error); return; }
 
+  // Isi halaman sukses
+  document.getElementById('successOrderNo').textContent = 'Nomor Pesanan: ' + orderNo;
+  document.getElementById('successGreeting').textContent = 'Terima kasih, ' + name + '!';
   document.getElementById('successTotal').textContent = formatRp(subtotal);
+  document.getElementById('successTotal2').textContent = formatRp(subtotal);
+
+  // Items
+  document.getElementById('successItems').innerHTML = cart.map(i => `
+    <div class="success-item">
+      <div class="success-item-img">${i.image_url
+        ? `<img src="${i.image_url}" style="width:56px;height:56px;object-fit:cover">`
+        : i.emoji || '👜'}</div>
+      <div class="success-item-info">
+        <p class="success-item-brand">${i.brand}</p>
+        <p class="success-item-name">${i.name}${i.qty > 1 ? ` <span style="color:var(--warm-gray);font-size:12px">x${i.qty}</span>` : ''}</p>
+        <p class="success-item-price">${formatRp(i.price * i.qty)}</p>
+      </div>
+    </div>
+  `).join('');
+
+  // Alamat
+  document.getElementById('successAddress').innerHTML =
+    `<strong>${name}</strong><br>${address}<br>${city}, ${province}${zip ? ' ' + zip : ''}<br>Indonesia`;
+
+  // Kontak
+  document.getElementById('successContact').innerHTML =
+    `${phone}${email ? '<br>' + email : ''}`;
+
+  const orderCart = [...cart];
   cart = [];
   saveCart();
   showPage('success');
