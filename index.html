@@ -217,7 +217,6 @@
   <div class="nav-inner">
     <span class="nav-logo" onclick="showPage('shop')">Dwie Foss</span>
     <div class="nav-right">
-      <button class="nav-admin" onclick="goAdmin()">Admin</button>
       <button class="nav-cart" onclick="showPage('cart')">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
           <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/>
@@ -865,7 +864,14 @@ async function deleteProduct(id) {
 
 // ── INIT ──
 updateCartCount();
-loadProducts();
+
+// Routing: cek URL path
+const path = window.location.pathname;
+if (path === '/admin' || path === '/admin/') {
+  goAdmin();
+} else {
+  loadProducts();
+}
 
 // Preview foto sebelum upload
 document.addEventListener('change', function(e) {
