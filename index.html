@@ -202,6 +202,14 @@
   .cat-btn { flex-shrink: 0; padding: 8px 18px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; border: 1px solid var(--stone); background: var(--white); color: var(--warm-gray); cursor: pointer; font-family: var(--sans); transition: all 0.2s; }
   .cat-btn.active { background: var(--espresso); color: var(--ivory); border-color: var(--espresso); }
 
+  /* PAGINATION */
+  .pagination { display: flex; justify-content: center; align-items: center; gap: 6px; padding: 32px 0 48px; }
+  .page-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid var(--stone); background: var(--white); color: var(--espresso); cursor: pointer; font-family: var(--sans); transition: all 0.2s; }
+  .page-btn.active { background: var(--espresso); color: var(--ivory); border-color: var(--espresso); }
+  .page-btn:hover:not(.active) { border-color: var(--espresso); }
+  .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+  .page-btn.arrow { font-size: 16px; }
+
   /* EMPTY STATE */
   .empty-state { text-align: center; padding: 48px 24px; color: var(--warm-gray); font-size: 13px; }
 
@@ -256,6 +264,7 @@
       <button class="cat-btn" onclick="filterCategory('Accessories', this)">Accessories</button>
     </div>
     <div class="product-grid" id="productGrid"></div>
+    <div class="pagination" id="pagination"></div>
   </div>
 </div>
 
@@ -480,6 +489,9 @@ const sb = createClient(
 let cart = JSON.parse(localStorage.getItem('dwifoss_cart') || '[]');
 let currentProduct = null;
 let allProducts = [];
+let filteredProducts = [];
+let currentPage = 1;
+const PAGE_SIZE = 24;
 
 // ── FORMAT RUPIAH ──
 function formatRp(n) {
@@ -532,7 +544,9 @@ async function loadProducts() {
   const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
   if (error) { showToast('Gagal memuat produk'); return; }
   allProducts = data;
-  renderProducts(data);
+  filteredProducts = data;
+  currentPage = 1;
+  renderProducts();
 }
 
 function filterCategory(cat, btn) {
@@ -540,18 +554,26 @@ function filterCategory(cat, btn) {
   btn.classList.add('active');
   const title = cat === 'all' ? 'Semua Produk' : cat;
   document.getElementById('sectionTitle').textContent = title;
-  const filtered = cat === 'all' ? allProducts : allProducts.filter(p => p.category === cat);
-  renderProducts(filtered);
+  filteredProducts = cat === 'all' ? allProducts : allProducts.filter(p => p.category === cat);
+  currentPage = 1;
+  renderProducts();
 }
 
-function renderProducts(products) {
+function renderProducts() {
   const grid = document.getElementById('productGrid');
-  document.getElementById('productCount').textContent = products.length + ' produk';
-  if (products.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:span 2">Belum ada produk</div>';
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
+  const start = (currentPage - 1) * PAGE_SIZE;
+  const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
+
+  document.getElementById('productCount').textContent = filteredProducts.length + ' produk';
+
+  if (filteredProducts.length === 0) {
+    grid.innerHTML = '<div class="empty-state" style="grid-column:span 4">Belum ada produk di kategori ini</div>';
+    document.getElementById('pagination').innerHTML = '';
     return;
   }
-  grid.innerHTML = products.map(p => `
+
+  grid.innerHTML = pageItems.map(p => `
     <div class="product-card" onclick="openDetail('${p.id}')">
       ${p.image_url
         ? `<img class="product-img" src="${p.image_url}" alt="${p.name}" loading="lazy">`
@@ -564,6 +586,32 @@ function renderProducts(products) {
       </div>
     </div>
   `).join('');
+
+  renderPagination(totalPages);
+}
+
+function renderPagination(totalPages) {
+  const el = document.getElementById('pagination');
+  if (totalPages <= 1) { el.innerHTML = ''; return; }
+
+  let html = `<button class="page-btn arrow" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
+
+  for (let i = 1; i <= totalPages; i++) {
+    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
+      if (i === 3 || i === totalPages - 2) html += `<span style="padding:0 4px;color:var(--warm-gray)">...</span>`;
+      continue;
+    }
+    html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
+  }
+
+  html += `<button class="page-btn arrow" onclick="goPage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>›</button>`;
+  el.innerHTML = html;
+}
+
+function goPage(page) {
+  currentPage = page;
+  renderProducts();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 // ── DETAIL ──
