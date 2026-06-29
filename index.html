@@ -420,7 +420,6 @@
     <div class="success-header">
       <div class="success-check">✓</div>
       <div class="success-header-text">
-        <p class="success-order-no" id="successOrderNo"></p>
         <h2 id="successGreeting">Pesanan Diterima!</h2>
         <p>Terima kasih telah berbelanja di Dwie Foss.</p>
       </div>
@@ -428,6 +427,8 @@
 
     <!-- Transfer Info -->
     <div class="success-bank-highlight">
+      <p class="label">Nomor Pesanan</p>
+      <p id="successOrderNo" style="font-size:18px;font-weight:500;letter-spacing:3px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
       <p class="label">Total Transfer</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
@@ -854,7 +855,7 @@ async function placeOrder() {
   if (error) { showToast('Gagal membuat pesanan. Coba lagi.'); console.error(error); return; }
 
   // Isi halaman sukses
-  document.getElementById('successOrderNo').textContent = 'Nomor Pesanan: ' + orderNo;
+  document.getElementById('successOrderNo').textContent = orderNo;
   document.getElementById('successGreeting').textContent = 'Terima kasih, ' + name + '!';
   document.getElementById('successTotal').textContent = formatRp(subtotal);
   document.getElementById('successTotal2').textContent = formatRp(subtotal);
