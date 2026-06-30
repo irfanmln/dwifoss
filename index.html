@@ -553,9 +553,10 @@
 
     <!-- TAB: PRODUCTS -->
     <div class="admin-section" id="tab-products">
-      <!-- Form tambah produk -->
+      <!-- Form tambah/edit produk -->
       <div class="admin-form-card">
-        <h3>Tambah Produk Baru</h3>
+        <h3 id="productFormTitle">Tambah Produk Baru</h3>
+        <input type="hidden" id="pEditId" value="">
         <div class="form-group">
           <label class="form-label">Brand</label>
           <input class="form-input" id="pBrand" placeholder="Tory Burch">
@@ -579,7 +580,11 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Foto Produk *</label>
+          <label class="form-label" id="pImageLabel">Foto Produk *</label>
+          <div id="pCurrentImageWrap" style="display:none;margin-bottom:8px">
+            <img id="pCurrentImage" style="width:100px;height:100px;object-fit:cover;border:1px solid var(--stone)">
+            <p style="font-size:11px;color:var(--warm-gray);margin-top:4px">Foto saat ini — upload baru untuk mengganti</p>
+          </div>
           <input class="form-input" id="pImage" type="file" accept="image/*" style="padding:10px 14px">
           <div id="pImagePreview" style="margin-top:8px;display:none">
             <img id="pImagePreviewImg" style="width:100%;max-height:200px;object-fit:cover;border:1px solid var(--stone)">
@@ -594,7 +599,8 @@
           <input class="form-input" id="pBadge" placeholder="New / Sale / dll">
         </div>
         <br>
-        <button class="btn-primary" onclick="addProduct()">Tambah Produk</button>
+        <button class="btn-primary" id="pSubmitBtn" onclick="addProduct()">Tambah Produk</button>
+        <button class="btn-secondary" id="pCancelEditBtn" onclick="cancelEditProduct()" style="display:none">Batal Edit</button>
       </div>
 
       <!-- Daftar produk -->
@@ -1303,6 +1309,7 @@ async function loadAdminProducts() {
       <td style="font-weight:500;font-size:13px">${formatRp(p.price)}${p.original_price && p.original_price > p.price ? `<br><span style="font-size:11px;color:var(--warm-gray);text-decoration:line-through">${formatRp(p.original_price)}</span>` : ''}</td>
       <td><span class="status-badge ${p.is_active ? 'status-confirmed' : 'status-pending'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
       <td>
+        <button class="btn-small btn-success" onclick="editProduct('${p.id}')" style="margin-bottom:4px;display:block">Edit</button>
         <button class="btn-small btn-warning" onclick="toggleProduct('${p.id}', ${p.is_active})" style="margin-bottom:4px;display:block">
           ${p.is_active ? 'Nonaktifkan' : 'Aktifkan'}
         </button>
@@ -1342,6 +1349,7 @@ function convertToWebp(file, quality = 0.82) {
 }
 
 async function addProduct() {
+  const editId = document.getElementById('pEditId').value;
   const category = document.getElementById('pCategory').value;
   const brand = document.getElementById('pBrand').value.trim();
   const name = document.getElementById('pName').value.trim();
@@ -1353,46 +1361,101 @@ async function addProduct() {
   const imageFile = document.getElementById('pImage').files[0];
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
-  if (!imageFile) { showToast('Foto produk wajib diupload'); return; }
-  if (original_price && original_price <= price) { showToast('Harga asli harus lebih besar dari harga jual'); return; }
+  if (!editId && !imageFile) { showToast('Foto produk wajib diupload'); return; }
+  if (original_price && original_price <= price) { showToast('Harga diskon harus lebih besar dari harga jual'); return; }
 
-  const btn = document.querySelector('#tab-products .btn-primary');
+  const btn = document.getElementById('pSubmitBtn');
   btn.disabled = true;
-  btn.textContent = 'Mengupload...';
+  btn.textContent = editId ? 'Menyimpan...' : 'Mengupload...';
 
-  // Upload foto ke Supabase Storage (konversi ke webp dulu)
-  const webpBlob = await convertToWebp(imageFile, 0.82);
-  const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-  const { error: uploadError } = await sb.storage.from('products').upload(fileName, webpBlob, { contentType: 'image/webp' });
+  let image_url = null;
 
-  if (uploadError) {
-    showToast('Gagal upload foto');
-    console.error(uploadError);
-    btn.disabled = false;
-    btn.textContent = 'Tambah Produk';
-    return;
+  // Upload foto baru hanya jika ada file dipilih
+  if (imageFile) {
+    const webpBlob = await convertToWebp(imageFile, 0.82);
+    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+    const { error: uploadError } = await sb.storage.from('products').upload(fileName, webpBlob, { contentType: 'image/webp' });
+
+    if (uploadError) {
+      showToast('Gagal upload foto');
+      console.error(uploadError);
+      btn.disabled = false;
+      btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
+      return;
+    }
+
+    const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
+    image_url = urlData.publicUrl;
   }
 
-  // Ambil public URL
-  const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-  const image_url = urlData.publicUrl;
-
-  // Simpan ke tabel products
-  const { error } = await sb.from('products').insert({ brand, name, price, original_price, image_url, category: category||null, description: description||null, badge: badge||null, is_active: true });
+  let error;
+  if (editId) {
+    // Mode EDIT — update produk yang sudah ada
+    const updatePayload = { brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null };
+    if (image_url) updatePayload.image_url = image_url;
+    ({ error } = await sb.from('products').update(updatePayload).eq('id', editId));
+  } else {
+    // Mode TAMBAH — produk baru
+    ({ error } = await sb.from('products').insert({ brand, name, price, original_price, image_url, category: category||null, description: description||null, badge: badge||null, is_active: true }));
+  }
 
   btn.disabled = false;
-  btn.textContent = 'Tambah Produk';
+  btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
 
-  if (error) { showToast('Gagal menambah produk'); console.error(error); return; }
+  if (error) { showToast(editId ? 'Gagal menyimpan perubahan' : 'Gagal menambah produk'); console.error(error); return; }
 
-  showToast('Produk berhasil ditambahkan ✓');
+  showToast(editId ? 'Produk berhasil diperbarui ✓' : 'Produk berhasil ditambahkan ✓');
+  resetProductForm();
+  loadAdminProducts();
+  loadProducts();
+}
+
+function resetProductForm() {
   ['pBrand','pName','pPrice','pOriginalPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
   document.getElementById('pCategory').value = '';
   document.getElementById('pImage').value = '';
   document.getElementById('pImagePreview').style.display = 'none';
-  loadAdminProducts();
-  loadProducts();
+  document.getElementById('pEditId').value = '';
+  document.getElementById('pCurrentImageWrap').style.display = 'none';
+  document.getElementById('pImageLabel').textContent = 'Foto Produk *';
+  document.getElementById('productFormTitle').textContent = 'Tambah Produk Baru';
+  document.getElementById('pSubmitBtn').textContent = 'Tambah Produk';
+  document.getElementById('pCancelEditBtn').style.display = 'none';
+}
+
+function editProduct(id) {
+  const p = allProducts.find(x => x.id === id);
+  if (!p) { showToast('Produk tidak ditemukan'); return; }
+
+  document.getElementById('pEditId').value = p.id;
+  document.getElementById('pBrand').value = p.brand || '';
+  document.getElementById('pName').value = p.name || '';
+  document.getElementById('pPrice').value = p.price || '';
+  document.getElementById('pOriginalPrice').value = p.original_price || '';
+  document.getElementById('pCategory').value = p.category || '';
+  document.getElementById('pDesc').value = p.description || '';
+  document.getElementById('pBadge').value = p.badge || '';
+  document.getElementById('pImage').value = '';
+  document.getElementById('pImagePreview').style.display = 'none';
+
+  if (p.image_url) {
+    document.getElementById('pCurrentImage').src = p.image_url;
+    document.getElementById('pCurrentImageWrap').style.display = 'block';
+  } else {
+    document.getElementById('pCurrentImageWrap').style.display = 'none';
+  }
+
+  document.getElementById('pImageLabel').textContent = 'Foto Produk (opsional, upload untuk ganti)';
+  document.getElementById('productFormTitle').textContent = 'Edit Produk';
+  document.getElementById('pSubmitBtn').textContent = 'Simpan Perubahan';
+  document.getElementById('pCancelEditBtn').style.display = 'block';
+
+  document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEditProduct() {
+  resetProductForm();
 }
 
 async function toggleProduct(id, currentActive) {
