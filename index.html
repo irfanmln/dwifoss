@@ -321,7 +321,7 @@
   </div>
   <div class="container">
     <div class="search-wrap">
-      <input class="search-input" id="searchInput" type="text" placeholder="Cari produk, brand..." oninput="handleSearch()" autocomplete="off" name="dwifoss-search-q">
+      <input class="search-input" id="searchInput" type="search" placeholder="Cari produk, brand..." oninput="handleSearch()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="q">
       <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
       <button class="search-icon-btn">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -489,11 +489,11 @@
     <p>Masuk untuk mengelola produk dan pesanan</p>
     <div class="form-group">
       <label class="form-label">Email</label>
-      <input class="form-input" id="adminEmail" type="email" placeholder="admin@dwifoss.com">
+      <input class="form-input" id="adminEmail" type="email" placeholder="admin@dwifoss.com" autocomplete="new-password" data-lpignore="true">
     </div>
     <div class="form-group">
       <label class="form-label">Password</label>
-      <input class="form-input" id="adminPassword" type="password" placeholder="••••••••">
+      <input class="form-input" id="adminPassword" type="password" placeholder="••••••••" autocomplete="new-password" data-lpignore="true">
     </div>
     <p class="login-error" id="loginError"></p>
     <br>
