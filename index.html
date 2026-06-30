@@ -92,6 +92,9 @@
   .product-brand { font-size: 9px; letter-spacing: 3px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 4px; }
   .product-name { font-family: var(--serif); font-size: 16px; font-weight: 400; line-height: 1.3; margin-bottom: 8px; color: var(--espresso); }
   .product-price { font-size: 13px; font-weight: 500; color: var(--espresso); }
+  .price-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+  .price-original { font-size: 11px; color: var(--warm-gray); text-decoration: line-through; }
+  .discount-badge { display: inline-block; font-size: 9px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 2px 6px; }
   .product-badge { display: inline-block; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; background: var(--caramel); color: white; padding: 2px 7px; margin-bottom: 8px; }
 
   /* SKELETON */
@@ -115,7 +118,9 @@
   }
   .detail-brand { font-size: 10px; letter-spacing: 4px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 8px; }
   .detail-name { font-family: var(--serif); font-size: 28px; font-weight: 300; line-height: 1.2; margin-bottom: 16px; }
-  .detail-price { font-size: 20px; font-weight: 500; margin-bottom: 24px; }
+  .detail-price { font-size: 20px; font-weight: 500; margin-bottom: 24px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+  .detail-price-original { font-size: 15px; color: var(--warm-gray); text-decoration: line-through; font-weight: 400; }
+  .detail-discount-badge { font-size: 11px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 3px 8px; }
   .detail-desc { font-size: 13px; line-height: 1.8; color: var(--warm-gray); margin-bottom: 32px; font-weight: 300; }
 
   /* BUTTONS */
@@ -564,6 +569,10 @@
           <input class="form-input" id="pPrice" type="number" placeholder="2500000">
         </div>
         <div class="form-group">
+          <label class="form-label">Harga Asli (opsional, untuk harga coret)</label>
+          <input class="form-input" id="pOriginalPrice" type="number" placeholder="Kosongkan jika tidak diskon">
+        </div>
+        <div class="form-group">
           <label class="form-label">Kategori</label>
           <select class="form-input" id="pCategory">
             <option value="">-- Pilih Kategori --</option>
@@ -884,19 +893,28 @@ function renderProducts() {
     return;
   }
 
-  grid.innerHTML = pageItems.map(p => `
+  grid.innerHTML = pageItems.map(p => {
+    const hasDiscount = p.original_price && p.original_price > p.price;
+    const discountPct = hasDiscount ? Math.round((1 - p.price / p.original_price) * 100) : 0;
+    return `
     <div class="product-card" onclick="openDetail('${p.id}')">
       ${p.image_url
         ? `<img class="product-img" src="${p.image_url}" alt="${p.name}" loading="lazy">`
         : `<div class="product-img-placeholder">${p.emoji || '👜'}</div>`}
       <div class="product-info">
-        ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
+          ${hasDiscount ? `<span class="discount-badge">-${discountPct}%</span>` : ''}
+        </div>
         <p class="product-brand">${p.brand}</p>
         <p class="product-name">${p.name}</p>
-        <p class="product-price">${formatRp(p.price)}</p>
+        <div class="price-row">
+          <p class="product-price">${formatRp(p.price)}</p>
+          ${hasDiscount ? `<span class="price-original">${formatRp(p.original_price)}</span>` : ''}
+        </div>
       </div>
     </div>
-  `).join('');
+  `;}).join('');
 
   renderPagination(totalPages);
 }
@@ -938,7 +956,10 @@ function openDetail(id) {
   }
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
-  document.getElementById('detailPrice').textContent = formatRp(currentProduct.price);
+  const hasDiscount = currentProduct.original_price && currentProduct.original_price > currentProduct.price;
+  const discountPct = hasDiscount ? Math.round((1 - currentProduct.price / currentProduct.original_price) * 100) : 0;
+  document.getElementById('detailPrice').innerHTML = formatRp(currentProduct.price) +
+    (hasDiscount ? `<span class="detail-price-original">${formatRp(currentProduct.original_price)}</span><span class="detail-discount-badge">-${discountPct}%</span>` : '');
   document.getElementById('detailDesc').innerHTML = (currentProduct.description || '').replace(/\n/g, '<br>');
   // Tampilkan kategori di bawah brand jika ada
   const catEl = document.getElementById('detailCategory');
@@ -1279,7 +1300,7 @@ async function loadAdminProducts() {
         <strong style="font-size:13px;display:block">${p.name}</strong>
         <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
       </td>
-      <td style="font-weight:500;font-size:13px">${formatRp(p.price)}</td>
+      <td style="font-weight:500;font-size:13px">${formatRp(p.price)}${p.original_price && p.original_price > p.price ? `<br><span style="font-size:11px;color:var(--warm-gray);text-decoration:line-through">${formatRp(p.original_price)}</span>` : ''}</td>
       <td><span class="status-badge ${p.is_active ? 'status-confirmed' : 'status-pending'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
       <td>
         <button class="btn-small btn-warning" onclick="toggleProduct('${p.id}', ${p.is_active})" style="margin-bottom:4px;display:block">
@@ -1325,12 +1346,15 @@ async function addProduct() {
   const brand = document.getElementById('pBrand').value.trim();
   const name = document.getElementById('pName').value.trim();
   const price = parseInt(document.getElementById('pPrice').value);
+  const originalPriceRaw = document.getElementById('pOriginalPrice').value;
+  const original_price = originalPriceRaw ? parseInt(originalPriceRaw) : null;
   const description = document.getElementById('pDesc').value.trim();
   const badge = document.getElementById('pBadge').value.trim();
   const imageFile = document.getElementById('pImage').files[0];
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
   if (!imageFile) { showToast('Foto produk wajib diupload'); return; }
+  if (original_price && original_price <= price) { showToast('Harga asli harus lebih besar dari harga jual'); return; }
 
   const btn = document.querySelector('#tab-products .btn-primary');
   btn.disabled = true;
@@ -1354,7 +1378,7 @@ async function addProduct() {
   const image_url = urlData.publicUrl;
 
   // Simpan ke tabel products
-  const { error } = await sb.from('products').insert({ brand, name, price, image_url, category: category||null, description: description||null, badge: badge||null, is_active: true });
+  const { error } = await sb.from('products').insert({ brand, name, price, original_price, image_url, category: category||null, description: description||null, badge: badge||null, is_active: true });
 
   btn.disabled = false;
   btn.textContent = 'Tambah Produk';
@@ -1362,7 +1386,7 @@ async function addProduct() {
   if (error) { showToast('Gagal menambah produk'); console.error(error); return; }
 
   showToast('Produk berhasil ditambahkan ✓');
-  ['pBrand','pName','pPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
+  ['pBrand','pName','pPrice','pOriginalPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
   document.getElementById('pCategory').value = '';
   document.getElementById('pImage').value = '';
