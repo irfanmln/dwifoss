@@ -234,6 +234,14 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--espresso); color: var(--ivory); padding: 12px 24px; font-size: 13px; letter-spacing: 1px; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
+  /* SEARCH */
+  .search-wrap { position: relative; padding: 24px 0 0; }
+  .search-input { width: 100%; padding: 13px 44px 13px 16px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; }
+  .search-input:focus { border-color: var(--caramel); }
+  .search-icon-btn { position: absolute; right: 12px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--warm-gray); cursor: pointer; display: flex; align-items: center; }
+  .search-clear { position: absolute; right: 40px; top: 50%; transform: translateY(-50%); background: none; border: none; color: var(--warm-gray); cursor: pointer; font-size: 18px; line-height: 1; display: none; }
+  .search-clear.show { display: block; }
+
   /* CATEGORY FILTER */
   .category-filter { display: flex; gap: 8px; padding: 20px 0 0; overflow-x: auto; scrollbar-width: none; }
   .category-filter::-webkit-scrollbar { display: none; }
@@ -312,6 +320,15 @@
     <p>Koleksi pilihan dari brand premium dunia, 100% original & bergaransi.</p>
   </div>
   <div class="container">
+    <div class="search-wrap">
+      <input class="search-input" id="searchInput" type="text" placeholder="Cari produk, brand..." oninput="handleSearch()">
+      <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
+      <button class="search-icon-btn">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
+      </button>
+    </div>
     <div class="section-header">
       <span class="section-title" id="sectionTitle">Semua Produk</span>
       <span class="section-count" id="productCount"></span>
@@ -604,6 +621,8 @@ let currentProduct = null;
 let allProducts = [];
 let filteredProducts = [];
 let currentPage = 1;
+let currentCategory = 'all';
+let currentSearch = '';
 const PAGE_SIZE = 24;
 
 // ── FORMAT RUPIAH ──
@@ -669,28 +688,61 @@ function closeMobileMenu() { document.getElementById('mobileMenu').classList.rem
 function navFilterCategory(cat, btn) {
   document.querySelectorAll('.nav-cat-link').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  applyFilter(cat);
+  currentCategory = cat;
+  applyFilter();
   showPage('shop');
 }
 
 function mobileFilterCategory(cat, btn) {
   document.querySelectorAll('.mobile-menu-link').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
-  applyFilter(cat);
+  currentCategory = cat;
+  applyFilter();
   closeMobileMenu();
   showPage('shop');
 }
 
-function applyFilter(cat) {
-  const title = cat === 'all' ? 'Semua Produk' : cat;
-  document.getElementById('sectionTitle').textContent = title;
-  filteredProducts = cat === 'all' ? allProducts : allProducts.filter(p => p.category === cat);
+function applyFilter() {
+  const title = currentCategory === 'all' ? 'Semua Produk' : currentCategory;
+  document.getElementById('sectionTitle').textContent = currentSearch ? `Hasil pencarian "${currentSearch}"` : title;
+
+  let result = currentCategory === 'all' ? allProducts : allProducts.filter(p => p.category === currentCategory);
+
+  if (currentSearch) {
+    const q = currentSearch.toLowerCase();
+    result = result.filter(p =>
+      (p.name && p.name.toLowerCase().includes(q)) ||
+      (p.brand && p.brand.toLowerCase().includes(q))
+    );
+  }
+
+  filteredProducts = result;
   currentPage = 1;
   renderProducts();
 }
 
 function filterCategory(cat, btn) {
-  applyFilter(cat);
+  currentCategory = cat;
+  applyFilter();
+}
+
+// ── SEARCH ──
+let searchDebounce;
+function handleSearch() {
+  const val = document.getElementById('searchInput').value.trim();
+  document.getElementById('searchClear').classList.toggle('show', val.length > 0);
+  clearTimeout(searchDebounce);
+  searchDebounce = setTimeout(() => {
+    currentSearch = val;
+    applyFilter();
+  }, 300);
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  document.getElementById('searchClear').classList.remove('show');
+  currentSearch = '';
+  applyFilter();
 }
 
 function renderProducts() {
@@ -702,7 +754,7 @@ function renderProducts() {
   document.getElementById('productCount').textContent = filteredProducts.length + ' produk';
 
   if (filteredProducts.length === 0) {
-    grid.innerHTML = '<div class="empty-state" style="grid-column:span 4">Belum ada produk di kategori ini</div>';
+    grid.innerHTML = `<div class="empty-state" style="grid-column:span 4">${currentSearch ? `Tidak ada produk untuk "${currentSearch}"` : 'Belum ada produk di kategori ini'}</div>`;
     document.getElementById('pagination').innerHTML = '';
     return;
   }
