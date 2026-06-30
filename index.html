@@ -285,11 +285,8 @@
     </div>
   </div>
   <div class="nav-cats">
-    <div class="nav-cats-inner">
+    <div class="nav-cats-inner" id="navCatsInner">
       <button class="nav-cat-link active" onclick="navFilterCategory('all', this)">Semua</button>
-      <button class="nav-cat-link" onclick="navFilterCategory('Handbags', this)">Handbags</button>
-      <button class="nav-cat-link" onclick="navFilterCategory('Wallets', this)">Wallets</button>
-      <button class="nav-cat-link" onclick="navFilterCategory('Accessories', this)">Accessories</button>
     </div>
   </div>
 </nav>
@@ -300,11 +297,8 @@
     <span>Dwie Foss</span>
     <button class="mobile-menu-close" onclick="closeMobileMenu()">×</button>
   </div>
-  <div class="mobile-menu-links">
+  <div class="mobile-menu-links" id="mobileMenuLinks">
     <button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>
-    <button class="mobile-menu-link" onclick="mobileFilterCategory('Handbags', this)">Handbags</button>
-    <button class="mobile-menu-link" onclick="mobileFilterCategory('Wallets', this)">Wallets</button>
-    <button class="mobile-menu-link" onclick="mobileFilterCategory('Accessories', this)">Accessories</button>
   </div>
 </div>
 
@@ -500,6 +494,7 @@
   <div class="admin-tabs">
     <button class="admin-tab active" onclick="switchAdminTab('orders')">Pesanan</button>
     <button class="admin-tab" onclick="switchAdminTab('products')">Produk</button>
+    <button class="admin-tab" onclick="switchAdminTab('categories')">Kategori</button>
     <button class="admin-tab" onclick="adminLogout()">Keluar</button>
   </div>
   <div class="admin-content">
@@ -530,9 +525,6 @@
           <label class="form-label">Kategori</label>
           <select class="form-input" id="pCategory">
             <option value="">-- Pilih Kategori --</option>
-            <option value="Handbags">Handbags</option>
-            <option value="Wallets">Wallets</option>
-            <option value="Accessories">Accessories</option>
           </select>
         </div>
         <div class="form-group">
@@ -566,6 +558,31 @@
             </tr>
           </thead>
           <tbody id="productsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB: CATEGORIES -->
+    <div class="admin-section" id="tab-categories">
+      <div class="admin-form-card">
+        <h3>Tambah Kategori Baru</h3>
+        <div class="form-group">
+          <label class="form-label">Nama Kategori</label>
+          <input class="form-input" id="catName" placeholder="Contoh: Sepatu, Jam Tangan">
+        </div>
+        <br>
+        <button class="btn-primary" onclick="addCategory()">Tambah Kategori</button>
+      </div>
+
+      <div class="admin-table-wrap">
+        <table class="admin-table">
+          <thead>
+            <tr>
+              <th>Nama Kategori</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="categoriesTableBody"></tbody>
         </table>
       </div>
     </div>
@@ -917,6 +934,7 @@ function showAdminPanel(user) {
   showPage('admin');
   loadAdminOrders();
   loadAdminProducts();
+  loadAdminCategories();
 }
 
 function switchAdminTab(tab) {
@@ -924,6 +942,77 @@ function switchAdminTab(tab) {
   document.querySelectorAll('.admin-section').forEach(s => s.classList.remove('active'));
   event.target.classList.add('active');
   document.getElementById('tab-' + tab).classList.add('active');
+}
+
+// ── CATEGORIES (GLOBAL, dipakai navbar/mobile/admin) ──
+let allCategories = [];
+
+async function loadCategories() {
+  const { data, error } = await sb.from('categories').select('*').order('name', { ascending: true });
+  if (error) { console.error(error); return; }
+  allCategories = data;
+  renderNavCategories();
+}
+
+function renderNavCategories() {
+  const navEl = document.getElementById('navCatsInner');
+  const mobileEl = document.getElementById('mobileMenuLinks');
+  const selectEl = document.getElementById('pCategory');
+
+  navEl.innerHTML = `<button class="nav-cat-link active" onclick="navFilterCategory('all', this)">Semua</button>` +
+    allCategories.map(c => `<button class="nav-cat-link" onclick="navFilterCategory('${c.name}', this)">${c.name}</button>`).join('');
+
+  mobileEl.innerHTML = `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>` +
+    allCategories.map(c => `<button class="mobile-menu-link" onclick="mobileFilterCategory('${c.name}', this)">${c.name}</button>`).join('');
+
+  if (selectEl) {
+    selectEl.innerHTML = `<option value="">-- Pilih Kategori --</option>` +
+      allCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+  }
+}
+
+async function loadAdminCategories() {
+  const tbody = document.getElementById('categoriesTableBody');
+  tbody.innerHTML = '<tr><td colspan="2" class="empty-state">Memuat...</td></tr>';
+
+  const { data, error } = await sb.from('categories').select('*').order('name', { ascending: true });
+  if (error) { tbody.innerHTML = '<tr><td colspan="2" class="empty-state">Gagal memuat</td></tr>'; return; }
+
+  if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="empty-state">Belum ada kategori</td></tr>'; return; }
+
+  tbody.innerHTML = data.map(c => `
+    <tr>
+      <td style="font-size:13px;font-weight:500">${c.name}</td>
+      <td><button class="btn-small btn-danger" onclick="deleteCategory('${c.id}')">Hapus</button></td>
+    </tr>
+  `).join('');
+}
+
+async function addCategory() {
+  const name = document.getElementById('catName').value.trim();
+  if (!name) { showToast('Nama kategori wajib diisi'); return; }
+
+  const { error } = await sb.from('categories').insert({ name });
+  if (error) {
+    if (error.code === '23505') showToast('Kategori sudah ada');
+    else showToast('Gagal menambah kategori');
+    console.error(error);
+    return;
+  }
+
+  showToast('Kategori ditambahkan ✓');
+  document.getElementById('catName').value = '';
+  loadAdminCategories();
+  loadCategories();
+}
+
+async function deleteCategory(id) {
+  if (!confirm('Hapus kategori ini? Produk dengan kategori ini tidak akan terhapus, hanya labelnya yang lepas.')) return;
+  const { error } = await sb.from('categories').delete().eq('id', id);
+  if (error) { showToast('Gagal menghapus kategori'); return; }
+  showToast('Kategori dihapus ✓');
+  loadAdminCategories();
+  loadCategories();
 }
 
 // ── ADMIN: ORDERS ──
@@ -1122,6 +1211,7 @@ async function deleteProduct(id) {
 
 // ── INIT ──
 updateCartCount();
+loadCategories();
 
 // Navbar shadow saat scroll
 window.addEventListener('scroll', () => {
