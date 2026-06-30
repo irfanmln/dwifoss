@@ -566,12 +566,12 @@
           <input class="form-input" id="pName" placeholder="Nama tas">
         </div>
         <div class="form-group">
-          <label class="form-label">Harga (Rp)</label>
-          <input class="form-input" id="pPrice" type="number" placeholder="2500000">
+          <label class="form-label">Harga Dasar (opsional, untuk harga coret)</label>
+          <input class="form-input" id="pOriginalPrice" type="number" placeholder="Kosongkan jika tidak diskon">
         </div>
         <div class="form-group">
-          <label class="form-label">Harga Diskon (opsional, untuk harga coret)</label>
-          <input class="form-input" id="pOriginalPrice" type="number" placeholder="Kosongkan jika tidak diskon">
+          <label class="form-label">Harga (Rp)</label>
+          <input class="form-input" id="pPrice" type="number" placeholder="2500000">
         </div>
         <div class="form-group">
           <label class="form-label">Kategori</label>
@@ -1362,7 +1362,7 @@ async function addProduct() {
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
   if (!editId && !imageFile) { showToast('Foto produk wajib diupload'); return; }
-  if (original_price && original_price <= price) { showToast('Harga diskon harus lebih besar dari harga jual'); return; }
+  if (original_price && original_price <= price) { showToast('Harga dasar harus lebih besar dari harga jual'); return; }
 
   const btn = document.getElementById('pSubmitBtn');
   btn.disabled = true;
