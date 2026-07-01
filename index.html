@@ -820,6 +820,14 @@ function showPage(name) {
   window.scrollTo(0, 0);
   if (name === 'cart') renderCart();
   if (name === 'checkout') renderCheckoutSummary();
+
+  // Keluar dari halaman admin ke halaman lain: sinkronkan URL balik ke root
+  // supaya refresh browser tidak salah nyangkut ke routing /admin
+  const isAdminPage = name === 'admin' || name === 'admin-login';
+  const onAdminPath = window.location.pathname === '/admin' || window.location.pathname === '/admin/';
+  if (!isAdminPage && onAdminPath) {
+    history.replaceState(null, '', '/');
+  }
 }
 
 // ── TOAST ──
@@ -1447,7 +1455,7 @@ async function addProduct() {
   const badge = document.getElementById('pBadge').value.trim();
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
-  if (!editId && pendingPhotos.length === 0) { showToast('Minimal 1 foto produk wajib diupload'); return; }
+  if (pendingPhotos.length === 0) { showToast('Minimal 1 foto produk wajib diupload'); return; }
   if (original_price && original_price <= price) { showToast('Harga dasar harus lebih besar dari harga jual'); return; }
 
   const btn = document.getElementById('pSubmitBtn');
