@@ -129,12 +129,27 @@
   .gallery-thumb { width: 72px; height: 72px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; opacity: 0.7; }
   .gallery-thumb.active { border-color: var(--espresso); opacity: 1; }
   .gallery-main-wrap { flex: 1; }
-  .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
+  .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
   @media (max-width: 767px) {
-    .gallery-thumbs { flex-direction: row; width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    .gallery-thumbs { flex-direction: row; width: 100%; overflow-x: auto; }
     .gallery-wrap { flex-direction: column-reverse; gap: 8px; }
     .gallery-thumb { width: 60px; height: 60px; flex-shrink: 0; }
   }
+
+  /* PHOTO UPLOAD DRAG & DROP */
+  .photo-upload-zone { border: 2px dashed var(--stone); padding: 24px; text-align: center; cursor: pointer; transition: border-color 0.2s; margin-bottom: 12px; }
+  .photo-upload-zone:hover, .photo-upload-zone.dragover { border-color: var(--caramel); }
+  .photo-upload-zone p { font-size: 13px; color: var(--warm-gray); margin-top: 8px; }
+  .photo-upload-zone span { font-size: 11px; color: var(--warm-gray); }
+
+  .photo-preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
+  .photo-preview-item { position: relative; aspect-ratio: 1/1; cursor: grab; border: 2px solid transparent; transition: border-color 0.2s; }
+  .photo-preview-item:active { cursor: grabbing; }
+  .photo-preview-item.dragging { opacity: 0.4; border-color: var(--caramel); }
+  .photo-preview-item.drag-over { border-color: var(--espresso); }
+  .photo-preview-item img { width: 100%; height: 100%; object-fit: cover; display: block; pointer-events: none; }
+  .photo-preview-remove { position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; background: rgba(0,0,0,0.65); color: white; border: none; cursor: pointer; font-size: 13px; line-height: 1; border-radius: 2px; display: flex; align-items: center; justify-content: center; }
+  .photo-cover-label { position: absolute; bottom: 0; left: 0; right: 0; background: var(--caramel); color: white; font-size: 9px; letter-spacing: 1px; text-align: center; padding: 2px; text-transform: uppercase; }
 
   /* BUTTONS */
   .btn-primary { width: 100%; background: var(--espresso); color: var(--ivory); border: none; padding: 16px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-weight: 500; }
@@ -598,15 +613,14 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label" id="pImageLabel">Foto Produk *</label>
-          <div id="pCurrentImageWrap" style="display:none;margin-bottom:8px">
-            <img id="pCurrentImage" style="width:100px;height:100px;object-fit:cover;border:1px solid var(--stone)">
-            <p style="font-size:11px;color:var(--warm-gray);margin-top:4px">Foto saat ini — upload baru untuk mengganti</p>
+          <label class="form-label">Foto Produk (drag untuk atur urutan, paling kiri = cover)</label>
+          <div class="photo-upload-zone" id="photoUploadZone" onclick="document.getElementById('pImageInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Klik atau drag foto ke sini</p>
+            <span>Bisa pilih banyak foto sekaligus • JPG, PNG, WEBP</span>
           </div>
-          <input class="form-input" id="pImage" type="file" accept="image/*" style="padding:10px 14px">
-          <div id="pImagePreview" style="margin-top:8px;display:none">
-            <img id="pImagePreviewImg" style="width:100px;height:100px;object-fit:cover;border:1px solid var(--stone)">
-          </div>
+          <input type="file" id="pImageInput" accept="image/*" multiple style="display:none" onchange="handlePhotoSelect(event)">
+          <div class="photo-preview-grid" id="photoPreviewGrid"></div>
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
@@ -619,22 +633,6 @@
         <br>
         <button class="btn-primary" id="pSubmitBtn" onclick="addProduct()">Tambah Produk</button>
         <button class="btn-secondary" id="pCancelEditBtn" onclick="cancelEditProduct()" style="display:none">Batal Edit</button>
-      </div>
-
-      <!-- Foto tambahan (muncul saat mode edit) -->
-      <div class="admin-form-card" id="extraPhotosCard" style="display:none">
-        <h3>Foto Tambahan</h3>
-        <p style="font-size:12px;color:var(--warm-gray);margin-bottom:16px">Upload foto detail produk (sudut berbeda, interior, dll). Foto utama diatur di form di atas.</p>
-
-        <!-- Upload foto baru -->
-        <div class="form-group">
-          <label class="form-label">Upload Foto Baru</label>
-          <input class="form-input" id="extraPhotoInput" type="file" accept="image/*" multiple style="padding:10px 14px">
-        </div>
-        <button class="btn-primary" onclick="uploadExtraPhotos()" style="margin-bottom:24px">Upload Foto</button>
-
-        <!-- Daftar foto yang sudah ada -->
-        <div id="extraPhotosList"></div>
       </div>
 
       <!-- Daftar produk -->
@@ -849,8 +847,20 @@ async function loadProducts() {
   renderSkeletons();
   const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
   if (error) { showToast('Gagal memuat produk'); return; }
-  allProducts = data;
-  filteredProducts = data;
+
+  // Ambil cover (sort_order terendah) untuk setiap produk
+  const ids = data.map(p => p.id);
+  let coverMap = {};
+  if (ids.length > 0) {
+    const { data: covers } = await sb.from('product_images').select('product_id, image_url').in('product_id', ids).order('sort_order', { ascending: true });
+    if (covers) {
+      covers.forEach(c => { if (!coverMap[c.product_id]) coverMap[c.product_id] = c.image_url; });
+    }
+  }
+  const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
+
+  allProducts = products;
+  filteredProducts = products;
   currentPage = 1;
   renderProducts();
 }
@@ -934,13 +944,14 @@ function renderProducts() {
   }
 
   grid.innerHTML = pageItems.map(p => {
+    const coverUrl = p.cover_url || null;
     const hasDiscount = p.original_price && p.original_price > p.price;
     const discountPct = hasDiscount ? Math.round((1 - p.price / p.original_price) * 100) : 0;
     return `
     <div class="product-card" onclick="openDetail('${p.id}')">
-      ${p.image_url
-        ? `<img class="product-img" src="${p.image_url}" alt="${p.name}" loading="lazy">`
-        : `<div class="product-img-placeholder">${p.emoji || '👜'}</div>`}
+      ${coverUrl
+        ? `<img class="product-img" src="${coverUrl}" alt="${p.name}" loading="lazy">`
+        : `<div class="product-img-placeholder">👜</div>`}
       <div class="product-info">
         <div style="display:flex;gap:6px;margin-bottom:8px">
           ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
@@ -998,17 +1009,9 @@ async function openDetail(id) {
   const catEl = document.getElementById('detailCategory');
   if (catEl) catEl.textContent = currentProduct.category || '';
 
-  // Load foto dari product_images
-  const { data: extraImgs } = await sb.from('product_images')
-    .select('*')
-    .eq('product_id', id)
-    .order('sort_order', { ascending: true });
-
-  // Gabungkan: foto utama + foto tambahan
-  const allImages = [];
-  if (currentProduct.image_url) allImages.push(currentProduct.image_url);
-  if (extraImgs && extraImgs.length > 0) extraImgs.forEach(img => allImages.push(img.image_url));
-
+  // Load semua foto dari product_images
+  const { data: imgs } = await sb.from('product_images').select('*').eq('product_id', id).order('sort_order', { ascending: true });
+  const allImages = imgs ? imgs.map(i => i.image_url) : [];
   renderGallery(allImages, currentProduct.name);
 }
 
@@ -1052,7 +1055,7 @@ function selectGalleryImg(thumbEl, url) {
 function addToCart(product) {
   const existing = cart.find(i => i.id === product.id);
   if (existing) { existing.qty += 1; }
-  else { cart.push({ id: product.id, brand: product.brand, name: product.name, price: product.price, emoji: product.emoji || '👜', qty: 1 }); }
+  else { cart.push({ id: product.id, brand: product.brand, name: product.name, price: product.price, cover_url: product.cover_url || null, qty: 1 }); }
   saveCart();
 }
 
@@ -1082,7 +1085,7 @@ function renderCart() {
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   el.innerHTML = cart.map(i => `
     <div class="cart-item">
-      <div class="cart-item-img">${i.emoji}</div>
+      <div class="cart-item-img">${i.cover_url ? `<img src="${i.cover_url}" style="width:72px;height:90px;object-fit:cover">` : '👜'}</div>
       <div class="cart-item-info">
         <p class="cart-item-brand">${i.brand}</p>
         <p class="cart-item-name">${i.name}</p>
@@ -1159,9 +1162,9 @@ async function placeOrder() {
   // Items
   document.getElementById('successItems').innerHTML = cart.map(i => `
     <div class="success-item">
-      <div class="success-item-img">${i.image_url
-        ? `<img src="${i.image_url}" style="width:56px;height:56px;object-fit:cover">`
-        : i.emoji || '👜'}</div>
+      <div class="success-item-img">${i.cover_url
+        ? `<img src="${i.cover_url}" style="width:56px;height:56px;object-fit:cover">`
+        : '👜'}</div>
       <div class="success-item-info">
         <p class="success-item-brand">${i.brand}</p>
         <p class="success-item-name">${i.name}${i.qty > 1 ? ` <span style="color:var(--warm-gray);font-size:12px">x${i.qty}</span>` : ''}</p>
@@ -1312,7 +1315,7 @@ async function loadAdminOrders() {
         const items = Array.isArray(o.items) ? o.items : [];
         const itemsHtml = items.map(i => `
           <div class="order-item-row">
-            <span>${i.emoji||''} ${i.brand} — ${i.name}${i.qty>1?' x'+i.qty:''}</span>
+            <span>${i.brand} — ${i.name}${i.qty>1?' x'+i.qty:''}</span>
             <span>${formatRp(i.price * i.qty)}</span>
           </div>`).join('');
         return `
@@ -1368,16 +1371,25 @@ async function loadAdminProducts() {
 
   const { data, error } = await sb.from('products').select('*').order('created_at', { ascending: false });
   if (error) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Gagal memuat</td></tr>'; return; }
-  allProducts = data;
 
-  if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada produk</td></tr>'; return; }
+  // Ambil cover tiap produk
+  const ids = data.map(p => p.id);
+  let coverMap = {};
+  if (ids.length > 0) {
+    const { data: covers } = await sb.from('product_images').select('product_id, image_url').in('product_id', ids).order('sort_order', { ascending: true });
+    if (covers) covers.forEach(c => { if (!coverMap[c.product_id]) coverMap[c.product_id] = c.image_url; });
+  }
+  const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
+  allProducts = products;
 
-  tbody.innerHTML = data.map(p => `
+  if (products.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada produk</td></tr>'; return; }
+
+  tbody.innerHTML = products.map(p => `
     <tr>
       <td>
-        ${p.image_url
-          ? `<img src="${p.image_url}" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
-          : `<span style="font-size:24px;display:block;margin-bottom:4px">${p.emoji||'👜'}</span>`}
+        ${p.cover_url
+          ? `<img src="${p.cover_url}" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
+          : `<span style="font-size:24px;display:block;margin-bottom:4px">👜</span>`}
         <strong style="font-size:13px;display:block">${p.name}</strong>
         <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
       </td>
@@ -1433,75 +1445,133 @@ async function addProduct() {
   const original_price = originalPriceRaw ? parseInt(originalPriceRaw) : null;
   const description = document.getElementById('pDesc').value.trim();
   const badge = document.getElementById('pBadge').value.trim();
-  const imageFile = document.getElementById('pImage').files[0];
 
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
-  if (!editId && !imageFile) { showToast('Foto produk wajib diupload'); return; }
+  if (!editId && pendingPhotos.length === 0) { showToast('Minimal 1 foto produk wajib diupload'); return; }
   if (original_price && original_price <= price) { showToast('Harga dasar harus lebih besar dari harga jual'); return; }
 
   const btn = document.getElementById('pSubmitBtn');
   btn.disabled = true;
-  btn.textContent = editId ? 'Menyimpan...' : 'Mengupload...';
+  btn.textContent = 'Menyimpan...';
 
-  let image_url = null;
+  // Simpan/update data produk dulu
+  let productId = editId;
+  let dbError;
 
-  // Upload foto baru hanya jika ada file dipilih
-  if (imageFile) {
-    const webpBlob = await convertToWebp(imageFile, 0.82);
-    const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-    const { error: uploadError } = await sb.storage.from('products').upload(fileName, webpBlob, { contentType: 'image/webp' });
-
-    if (uploadError) {
-      showToast('Gagal upload foto');
-      console.error(uploadError);
-      btn.disabled = false;
-      btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
-      return;
-    }
-
-    const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-    image_url = urlData.publicUrl;
+  if (editId) {
+    const { error } = await sb.from('products').update({ brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null }).eq('id', editId);
+    dbError = error;
+  } else {
+    const { data, error } = await sb.from('products').insert({ brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null, is_active: true }).select().single();
+    dbError = error;
+    if (data) productId = data.id;
   }
 
-  let error;
-  if (editId) {
-    // Mode EDIT — update produk yang sudah ada
-    const updatePayload = { brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null };
-    if (image_url) updatePayload.image_url = image_url;
-    ({ error } = await sb.from('products').update(updatePayload).eq('id', editId));
-  } else {
-    // Mode TAMBAH — produk baru
-    ({ error } = await sb.from('products').insert({ brand, name, price, original_price, image_url, category: category||null, description: description||null, badge: badge||null, is_active: true }));
+  if (dbError) { showToast('Gagal menyimpan produk'); console.error(dbError); btn.disabled = false; btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk'; return; }
+
+  // Upload foto baru (dari pendingPhotos) ke product_images
+  if (pendingPhotos.length > 0) {
+    // Hapus foto lama jika edit
+    if (editId) {
+      await sb.from('product_images').delete().eq('product_id', productId);
+    }
+
+    btn.textContent = 'Mengupload foto...';
+    let order = 0;
+    for (const item of pendingPhotos) {
+      let blob;
+      if (item.file) {
+        blob = await convertToWebp(item.file, 0.82);
+      } else {
+        // Foto lama (dari edit, tidak diubah) — skip re-upload, insert ulang dengan order baru
+        await sb.from('product_images').insert({ product_id: productId, image_url: item.url, sort_order: order++ });
+        continue;
+      }
+      const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+      const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+      if (upErr) { console.error(upErr); continue; }
+      const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
+      await sb.from('product_images').insert({ product_id: productId, image_url: urlData.publicUrl, sort_order: order++ });
+    }
   }
 
   btn.disabled = false;
   btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
-
-  if (error) { showToast(editId ? 'Gagal menyimpan perubahan' : 'Gagal menambah produk'); console.error(error); return; }
-
   showToast(editId ? 'Produk berhasil diperbarui ✓' : 'Produk berhasil ditambahkan ✓');
   resetProductForm();
   loadAdminProducts();
   loadProducts();
 }
 
+// ── PHOTO STATE & DRAG-DROP ──
+let pendingPhotos = []; // [{file, url, id}] — file=null jika foto lama
+let dragSrcIdx = null;
+
+function handlePhotoSelect(event) {
+  const files = Array.from(event.target.files);
+  files.forEach(f => {
+    const url = URL.createObjectURL(f);
+    pendingPhotos.push({ file: f, url, id: Date.now() + Math.random() });
+  });
+  event.target.value = '';
+  renderPhotoPreview();
+}
+
+function handleDragOver(e) { e.preventDefault(); document.getElementById('photoUploadZone').classList.add('dragover'); }
+function handleDragLeave(e) { document.getElementById('photoUploadZone').classList.remove('dragover'); }
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('photoUploadZone').classList.remove('dragover');
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  files.forEach(f => { pendingPhotos.push({ file: f, url: URL.createObjectURL(f), id: Date.now() + Math.random() }); });
+  renderPhotoPreview();
+}
+
+function renderPhotoPreview() {
+  const grid = document.getElementById('photoPreviewGrid');
+  grid.innerHTML = pendingPhotos.map((item, i) => `
+    <div class="photo-preview-item" draggable="true"
+      ondragstart="photoDragStart(${i})" ondragover="photoDragOver(event,${i})" ondrop="photoDrop(event,${i})" ondragend="photoDragEnd()">
+      <img src="${item.url}" alt="foto ${i+1}">
+      <button class="photo-preview-remove" onclick="removePhoto(${i})">×</button>
+      ${i === 0 ? '<div class="photo-cover-label">Cover</div>' : ''}
+    </div>
+  `).join('');
+}
+
+function removePhoto(idx) {
+  if (pendingPhotos[idx].file) URL.revokeObjectURL(pendingPhotos[idx].url);
+  pendingPhotos.splice(idx, 1);
+  renderPhotoPreview();
+}
+
+function photoDragStart(idx) { dragSrcIdx = idx; setTimeout(() => document.querySelectorAll('.photo-preview-item')[idx]?.classList.add('dragging'), 0); }
+function photoDragOver(e, idx) { e.preventDefault(); document.querySelectorAll('.photo-preview-item').forEach((el,i) => el.classList.toggle('drag-over', i === idx && i !== dragSrcIdx)); }
+function photoDrop(e, idx) {
+  e.preventDefault();
+  if (dragSrcIdx === null || dragSrcIdx === idx) return;
+  const moved = pendingPhotos.splice(dragSrcIdx, 1)[0];
+  pendingPhotos.splice(idx, 0, moved);
+  renderPhotoPreview();
+}
+function photoDragEnd() {
+  dragSrcIdx = null;
+  document.querySelectorAll('.photo-preview-item').forEach(el => el.classList.remove('dragging','drag-over'));
+}
+
 function resetProductForm() {
   ['pBrand','pName','pPrice','pOriginalPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
   document.getElementById('pCategory').value = '';
-  document.getElementById('pImage').value = '';
-  document.getElementById('pImagePreview').style.display = 'none';
   document.getElementById('pEditId').value = '';
-  document.getElementById('pCurrentImageWrap').style.display = 'none';
-  document.getElementById('pImageLabel').textContent = 'Foto Produk *';
   document.getElementById('productFormTitle').textContent = 'Tambah Produk Baru';
   document.getElementById('pSubmitBtn').textContent = 'Tambah Produk';
   document.getElementById('pCancelEditBtn').style.display = 'none';
-  document.getElementById('extraPhotosCard').style.display = 'none';
-  document.getElementById('extraPhotosList').innerHTML = '';
+  pendingPhotos = [];
+  renderPhotoPreview();
 }
 
-function editProduct(id) {
+async function editProduct(id) {
   const p = allProducts.find(x => x.id === id);
   if (!p) { showToast('Produk tidak ditemukan'); return; }
 
@@ -1513,92 +1583,20 @@ function editProduct(id) {
   document.getElementById('pCategory').value = p.category || '';
   document.getElementById('pDesc').value = p.description || '';
   document.getElementById('pBadge').value = p.badge || '';
-  document.getElementById('pImage').value = '';
-  document.getElementById('pImagePreview').style.display = 'none';
-
-  if (p.image_url) {
-    document.getElementById('pCurrentImage').src = p.image_url;
-    document.getElementById('pCurrentImageWrap').style.display = 'block';
-  } else {
-    document.getElementById('pCurrentImageWrap').style.display = 'none';
-  }
-
-  document.getElementById('pImageLabel').textContent = 'Foto Produk (opsional, upload untuk ganti)';
   document.getElementById('productFormTitle').textContent = 'Edit Produk';
   document.getElementById('pSubmitBtn').textContent = 'Simpan Perubahan';
   document.getElementById('pCancelEditBtn').style.display = 'block';
-  document.getElementById('extraPhotosCard').style.display = 'block';
 
-  loadExtraPhotos(p.id);
+  // Load foto existing ke pendingPhotos (file=null = foto lama)
+  pendingPhotos = [];
+  const { data: imgs } = await sb.from('product_images').select('*').eq('product_id', id).order('sort_order', { ascending: true });
+  if (imgs) imgs.forEach(img => pendingPhotos.push({ file: null, url: img.image_url, id: img.id }));
+  renderPhotoPreview();
+
   document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-async function loadExtraPhotos(productId) {
-  const el = document.getElementById('extraPhotosList');
-  el.innerHTML = '<p style="font-size:12px;color:var(--warm-gray)">Memuat...</p>';
-
-  const { data, error } = await sb.from('product_images').select('*').eq('product_id', productId).order('sort_order', { ascending: true });
-  if (error || !data || data.length === 0) {
-    el.innerHTML = '<p style="font-size:12px;color:var(--warm-gray)">Belum ada foto tambahan.</p>';
-    return;
-  }
-
-  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">` +
-    data.map(img => `
-      <div style="position:relative">
-        <img src="${img.image_url}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border:1px solid var(--stone)">
-        <button onclick="deleteExtraPhoto('${img.id}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;width:24px;height:24px;font-size:14px;line-height:1;border-radius:2px">×</button>
-      </div>
-    `).join('') + `</div>`;
-}
-
-async function uploadExtraPhotos() {
-  const editId = document.getElementById('pEditId').value;
-  if (!editId) { showToast('Simpan produk dulu sebelum upload foto tambahan'); return; }
-
-  const files = document.getElementById('extraPhotoInput').files;
-  if (!files || files.length === 0) { showToast('Pilih foto terlebih dahulu'); return; }
-
-  const btn = event.target;
-  btn.disabled = true;
-  btn.textContent = 'Mengupload...';
-
-  // Dapatkan sort_order terakhir
-  const { data: existing } = await sb.from('product_images').select('sort_order').eq('product_id', editId).order('sort_order', { ascending: false }).limit(1);
-  let nextOrder = existing && existing.length > 0 ? (existing[0].sort_order + 1) : 0;
-
-  let successCount = 0;
-  for (const file of files) {
-    const webpBlob = await convertToWebp(file, 0.82);
-    const fileName = `${editId}/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-    const { error: upErr } = await sb.storage.from('products').upload(fileName, webpBlob, { contentType: 'image/webp' });
-    if (upErr) { console.error(upErr); continue; }
-
-    const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-    const { error: dbErr } = await sb.from('product_images').insert({ product_id: editId, image_url: urlData.publicUrl, sort_order: nextOrder++ });
-    if (!dbErr) successCount++;
-  }
-
-  btn.disabled = false;
-  btn.textContent = 'Upload Foto';
-  document.getElementById('extraPhotoInput').value = '';
-
-  showToast(`${successCount} foto berhasil diupload ✓`);
-  loadExtraPhotos(editId);
-}
-
-async function deleteExtraPhoto(imgId) {
-  if (!confirm('Hapus foto ini?')) return;
-  const { error } = await sb.from('product_images').delete().eq('id', imgId);
-  if (error) { showToast('Gagal menghapus foto'); return; }
-  showToast('Foto dihapus ✓');
-  const editId = document.getElementById('pEditId').value;
-  loadExtraPhotos(editId);
-}
-
-function cancelEditProduct() {
-  resetProductForm();
-}
+function cancelEditProduct() { resetProductForm(); }
 
 async function toggleProduct(id, currentActive) {
   const { error } = await sb.from('products').update({ is_active: !currentActive }).eq('id', id);
@@ -1633,20 +1631,6 @@ if (path === '/admin' || path === '/admin/') {
 } else {
   loadProducts();
 }
-
-// Preview foto sebelum upload
-document.addEventListener('change', function(e) {
-  if (e.target.id === 'pImage') {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = function(ev) {
-      document.getElementById('pImagePreviewImg').src = ev.target.result;
-      document.getElementById('pImagePreview').style.display = 'block';
-    };
-    reader.readAsDataURL(file);
-  }
-});
 </script>
 </body>
 </html>
