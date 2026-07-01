@@ -123,6 +123,19 @@
   .detail-discount-badge { font-size: 11px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 3px 8px; }
   .detail-desc { font-size: 13px; line-height: 1.8; color: var(--warm-gray); margin-bottom: 32px; font-weight: 300; }
 
+  /* GALLERY */
+  .gallery-wrap { display: flex; gap: 10px; width: 100%; }
+  .gallery-thumbs { display: flex; flex-direction: column; gap: 8px; width: 72px; flex-shrink: 0; }
+  .gallery-thumb { width: 72px; height: 72px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; opacity: 0.7; }
+  .gallery-thumb.active { border-color: var(--espresso); opacity: 1; }
+  .gallery-main-wrap { flex: 1; }
+  .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; }
+  @media (max-width: 767px) {
+    .gallery-thumbs { flex-direction: row; width: 100%; flex-wrap: nowrap; overflow-x: auto; }
+    .gallery-wrap { flex-direction: column-reverse; gap: 8px; }
+    .gallery-thumb { width: 60px; height: 60px; flex-shrink: 0; }
+  }
+
   /* BUTTONS */
   .btn-primary { width: 100%; background: var(--espresso); color: var(--ivory); border: none; padding: 16px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-weight: 500; }
   .btn-primary:hover { background: #1a1108; }
@@ -374,7 +387,12 @@
     <button class="btn-back" onclick="showPage('shop')">← Kembali</button>
     <div class="detail-layout">
       <div class="detail-img-wrap">
-        <div class="detail-img-placeholder" id="detailEmoji"></div>
+        <div class="gallery-wrap" id="galleryWrap">
+          <div class="gallery-thumbs" id="galleryThumbs"></div>
+          <div class="gallery-main-wrap">
+            <img class="gallery-main" id="galleryMain" src="" alt="">
+          </div>
+        </div>
       </div>
       <div class="detail-body">
         <p class="detail-brand" id="detailBrand"></p>
@@ -601,6 +619,22 @@
         <br>
         <button class="btn-primary" id="pSubmitBtn" onclick="addProduct()">Tambah Produk</button>
         <button class="btn-secondary" id="pCancelEditBtn" onclick="cancelEditProduct()" style="display:none">Batal Edit</button>
+      </div>
+
+      <!-- Foto tambahan (muncul saat mode edit) -->
+      <div class="admin-form-card" id="extraPhotosCard" style="display:none">
+        <h3>Foto Tambahan</h3>
+        <p style="font-size:12px;color:var(--warm-gray);margin-bottom:16px">Upload foto detail produk (sudut berbeda, interior, dll). Foto utama diatur di form di atas.</p>
+
+        <!-- Upload foto baru -->
+        <div class="form-group">
+          <label class="form-label">Upload Foto Baru</label>
+          <input class="form-input" id="extraPhotoInput" type="file" accept="image/*" multiple style="padding:10px 14px">
+        </div>
+        <button class="btn-primary" onclick="uploadExtraPhotos()" style="margin-bottom:24px">Upload Foto</button>
+
+        <!-- Daftar foto yang sudah ada -->
+        <div id="extraPhotosList"></div>
       </div>
 
       <!-- Daftar produk -->
@@ -950,16 +984,10 @@ function goPage(page) {
 }
 
 // ── DETAIL ──
-function openDetail(id) {
+async function openDetail(id) {
   currentProduct = allProducts.find(p => p.id === id);
-  const detailImgEl = document.getElementById('detailEmoji');
-  if (currentProduct.image_url) {
-    detailImgEl.className = 'detail-img';
-    detailImgEl.innerHTML = `<img src="${currentProduct.image_url}" alt="${currentProduct.name}" style="width:100%;height:100%;object-fit:cover;display:block">`;
-  } else {
-    detailImgEl.className = 'detail-img-placeholder';
-    detailImgEl.textContent = currentProduct.emoji || '👜';
-  }
+  showPage('detail');
+
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
   const hasDiscount = currentProduct.original_price && currentProduct.original_price > currentProduct.price;
@@ -967,10 +995,57 @@ function openDetail(id) {
   document.getElementById('detailPrice').innerHTML = formatRp(currentProduct.price) +
     (hasDiscount ? `<span class="detail-price-original">${formatRp(currentProduct.original_price)}</span><span class="detail-discount-badge">-${discountPct}%</span>` : '');
   document.getElementById('detailDesc').innerHTML = (currentProduct.description || '').replace(/\n/g, '<br>');
-  // Tampilkan kategori di bawah brand jika ada
   const catEl = document.getElementById('detailCategory');
   if (catEl) catEl.textContent = currentProduct.category || '';
-  showPage('detail');
+
+  // Load foto dari product_images
+  const { data: extraImgs } = await sb.from('product_images')
+    .select('*')
+    .eq('product_id', id)
+    .order('sort_order', { ascending: true });
+
+  // Gabungkan: foto utama + foto tambahan
+  const allImages = [];
+  if (currentProduct.image_url) allImages.push(currentProduct.image_url);
+  if (extraImgs && extraImgs.length > 0) extraImgs.forEach(img => allImages.push(img.image_url));
+
+  renderGallery(allImages, currentProduct.name);
+}
+
+function renderGallery(images, altText) {
+  const mainEl = document.getElementById('galleryMain');
+  const thumbsEl = document.getElementById('galleryThumbs');
+
+  if (images.length === 0) {
+    mainEl.src = '';
+    mainEl.style.background = 'var(--stone)';
+    thumbsEl.innerHTML = '';
+    return;
+  }
+
+  // Tampilkan foto pertama sebagai main
+  mainEl.src = images[0];
+  mainEl.alt = altText;
+
+  // Sembunyikan thumbs kalau hanya 1 foto
+  if (images.length <= 1) {
+    thumbsEl.innerHTML = '';
+    thumbsEl.style.display = 'none';
+    return;
+  }
+
+  thumbsEl.style.display = 'flex';
+  thumbsEl.innerHTML = images.map((url, i) => `
+    <img class="gallery-thumb ${i === 0 ? 'active' : ''}"
+      src="${url}" alt="${altText} ${i+1}"
+      onclick="selectGalleryImg(this, '${url}')">
+  `).join('');
+}
+
+function selectGalleryImg(thumbEl, url) {
+  document.getElementById('galleryMain').src = url;
+  document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
+  thumbEl.classList.add('active');
 }
 
 // ── CART ACTIONS ──
@@ -1422,6 +1497,8 @@ function resetProductForm() {
   document.getElementById('productFormTitle').textContent = 'Tambah Produk Baru';
   document.getElementById('pSubmitBtn').textContent = 'Tambah Produk';
   document.getElementById('pCancelEditBtn').style.display = 'none';
+  document.getElementById('extraPhotosCard').style.display = 'none';
+  document.getElementById('extraPhotosList').innerHTML = '';
 }
 
 function editProduct(id) {
@@ -1450,8 +1527,73 @@ function editProduct(id) {
   document.getElementById('productFormTitle').textContent = 'Edit Produk';
   document.getElementById('pSubmitBtn').textContent = 'Simpan Perubahan';
   document.getElementById('pCancelEditBtn').style.display = 'block';
+  document.getElementById('extraPhotosCard').style.display = 'block';
 
+  loadExtraPhotos(p.id);
   document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function loadExtraPhotos(productId) {
+  const el = document.getElementById('extraPhotosList');
+  el.innerHTML = '<p style="font-size:12px;color:var(--warm-gray)">Memuat...</p>';
+
+  const { data, error } = await sb.from('product_images').select('*').eq('product_id', productId).order('sort_order', { ascending: true });
+  if (error || !data || data.length === 0) {
+    el.innerHTML = '<p style="font-size:12px;color:var(--warm-gray)">Belum ada foto tambahan.</p>';
+    return;
+  }
+
+  el.innerHTML = `<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:8px">` +
+    data.map(img => `
+      <div style="position:relative">
+        <img src="${img.image_url}" style="width:100%;aspect-ratio:1/1;object-fit:cover;display:block;border:1px solid var(--stone)">
+        <button onclick="deleteExtraPhoto('${img.id}')" style="position:absolute;top:4px;right:4px;background:rgba(0,0,0,0.6);color:white;border:none;cursor:pointer;width:24px;height:24px;font-size:14px;line-height:1;border-radius:2px">×</button>
+      </div>
+    `).join('') + `</div>`;
+}
+
+async function uploadExtraPhotos() {
+  const editId = document.getElementById('pEditId').value;
+  if (!editId) { showToast('Simpan produk dulu sebelum upload foto tambahan'); return; }
+
+  const files = document.getElementById('extraPhotoInput').files;
+  if (!files || files.length === 0) { showToast('Pilih foto terlebih dahulu'); return; }
+
+  const btn = event.target;
+  btn.disabled = true;
+  btn.textContent = 'Mengupload...';
+
+  // Dapatkan sort_order terakhir
+  const { data: existing } = await sb.from('product_images').select('sort_order').eq('product_id', editId).order('sort_order', { ascending: false }).limit(1);
+  let nextOrder = existing && existing.length > 0 ? (existing[0].sort_order + 1) : 0;
+
+  let successCount = 0;
+  for (const file of files) {
+    const webpBlob = await convertToWebp(file, 0.82);
+    const fileName = `${editId}/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+    const { error: upErr } = await sb.storage.from('products').upload(fileName, webpBlob, { contentType: 'image/webp' });
+    if (upErr) { console.error(upErr); continue; }
+
+    const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
+    const { error: dbErr } = await sb.from('product_images').insert({ product_id: editId, image_url: urlData.publicUrl, sort_order: nextOrder++ });
+    if (!dbErr) successCount++;
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Upload Foto';
+  document.getElementById('extraPhotoInput').value = '';
+
+  showToast(`${successCount} foto berhasil diupload ✓`);
+  loadExtraPhotos(editId);
+}
+
+async function deleteExtraPhoto(imgId) {
+  if (!confirm('Hapus foto ini?')) return;
+  const { error } = await sb.from('product_images').delete().eq('id', imgId);
+  if (error) { showToast('Gagal menghapus foto'); return; }
+  showToast('Foto dihapus ✓');
+  const editId = document.getElementById('pEditId').value;
+  loadExtraPhotos(editId);
 }
 
 function cancelEditProduct() {
