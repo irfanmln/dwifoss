@@ -184,12 +184,6 @@
   .form-input { width: 100%; padding: 13px 14px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; }
   .form-input:focus { border-color: var(--caramel); }
   .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-  .bank-box { background: var(--white); border: 1px solid var(--stone); padding: 20px; margin-top: 8px; }
-  .bank-box-label { font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: var(--warm-gray); margin-bottom: 12px; }
-  .bank-name { font-family: var(--serif); font-size: 20px; font-weight: 400; margin-bottom: 4px; }
-  .bank-number { font-size: 22px; font-weight: 500; letter-spacing: 2px; color: var(--espresso); margin-bottom: 4px; }
-  .bank-holder { font-size: 12px; color: var(--warm-gray); }
-  .bank-note { margin-top: 14px; font-size: 12px; color: var(--warm-gray); line-height: 1.6; padding-top: 14px; border-top: 1px solid var(--stone); }
   .order-mini-item { display: flex; justify-content: space-between; font-size: 13px; margin-bottom: 8px; color: var(--warm-gray); }
   .order-mini-total { display: flex; justify-content: space-between; font-size: 15px; font-weight: 500; border-top: 1px solid var(--stone); padding-top: 12px; margin-top: 8px; }
 
@@ -415,8 +409,8 @@
         <h2 class="detail-name" id="detailName"></h2>
         <p class="detail-price" id="detailPrice"></p>
         <p class="detail-desc" id="detailDesc"></p>
-        <button class="btn-primary" onclick="addToCartFromDetail()">Tambah ke Keranjang</button>
-        <button class="btn-secondary" onclick="buyNow()">Beli Sekarang</button>
+        <button class="btn-primary" onclick="addToCartFromDetail()">Add to Cart</button>
+        <button class="btn-secondary" onclick="buyNow()">Order Now</button>
       </div>
     </div>
   </div>
@@ -474,16 +468,6 @@
         <input class="form-input" id="fieldProvince" type="text" placeholder="DKI Jakarta">
       </div>
     </div>
-    <div class="checkout-section">
-      <h3>Pembayaran</h3>
-      <div class="bank-box">
-        <p class="bank-box-label">Transfer Bank</p>
-        <p class="bank-name">BCA</p>
-        <p class="bank-number">1234 5678 90</p>
-        <p class="bank-holder">a/n Dwifoss Indonesia</p>
-        <p class="bank-note">Setelah klik "Buat Pesanan", transfer sesuai total ke rekening di atas. Kirim bukti transfer via WhatsApp ke nomor kami untuk konfirmasi.</p>
-      </div>
-    </div>
     <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Buat Pesanan</button>
   </div>
 </div>
@@ -499,19 +483,16 @@
       </div>
     </div>
 
-    <!-- Transfer Info -->
+    <!-- Konfirmasi via WhatsApp -->
     <div class="success-bank-highlight">
       <p class="label">Nomor Pesanan</p>
       <p id="successOrderNo" style="font-size:18px;font-weight:500;letter-spacing:3px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
-      <p class="label">Total Transfer</p>
+      <p class="label">Total Pesanan</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
-        <strong>BCA — 1234 5678 90</strong><br>
-        a/n Dwie Foss Indonesia<br><br>
-        Konfirmasi pembayaran via WhatsApp:<br>
-        <strong>+62 812-3456-7890</strong><br><br>
-        Sertakan nomor pesanan kamu saat konfirmasi.
+        Klik tombol di bawah untuk konfirmasi pesanan via WhatsApp — kami akan kirimkan detail pembayaran & ongkos kirim langsung di sana.
       </div>
+      <a id="successWaBtn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Konfirmasi via WhatsApp</a>
     </div>
 
     <!-- Produk dibeli -->
@@ -581,6 +562,23 @@
 
     <!-- TAB: ORDERS -->
     <div class="admin-section active" id="tab-orders">
+      <div class="admin-form-card">
+        <div class="form-group">
+          <label class="form-label">Cari Nama Pemesan / Produk</label>
+          <input class="form-input" id="orderSearch" placeholder="Cari..." oninput="renderAdminOrdersTable()">
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dari Tanggal</label>
+            <input class="form-input" id="orderDateFrom" type="date" onchange="renderAdminOrdersTable()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sampai Tanggal</label>
+            <input class="form-input" id="orderDateTo" type="date" onchange="renderAdminOrdersTable()">
+          </div>
+        </div>
+        <button class="btn-secondary" style="margin-top:0" onclick="resetOrderFilters()">Reset Filter</button>
+      </div>
       <div id="ordersList"></div>
     </div>
 
@@ -636,6 +634,9 @@
       </div>
 
       <!-- Daftar produk -->
+      <div class="form-group">
+        <input class="form-input" id="adminProductSearch" placeholder="Cari nama atau brand produk..." oninput="renderAdminProductsTable()">
+      </div>
       <div class="admin-table-wrap">
         <table class="admin-table">
           <thead>
@@ -654,13 +655,15 @@
     <!-- TAB: CATEGORIES -->
     <div class="admin-section" id="tab-categories">
       <div class="admin-form-card">
-        <h3>Tambah Kategori Baru</h3>
+        <h3 id="categoryFormTitle">Tambah Kategori Baru</h3>
+        <input type="hidden" id="catEditId" value="">
         <div class="form-group">
           <label class="form-label">Nama Kategori</label>
           <input class="form-input" id="catName" placeholder="Contoh: Sepatu, Jam Tangan">
         </div>
         <br>
-        <button class="btn-primary" onclick="addCategory()">Tambah Kategori</button>
+        <button class="btn-primary" id="catSubmitBtn" onclick="addCategory()">Tambah Kategori</button>
+        <button class="btn-secondary" id="catCancelEditBtn" onclick="cancelEditCategory()" style="display:none">Batal Edit</button>
       </div>
 
       <div class="admin-table-wrap">
@@ -679,37 +682,48 @@
   </div>
 </div>
 
-<!-- ════ PAGE: CARA BELANJA ════ -->
+<!-- ════ PAGE: HOW TO SHOP ════ -->
 <div class="page" id="page-cara-belanja">
-  <button class="btn-back" onclick="showPage('shop')" style="max-width:1280px;margin:0 auto;display:flex">← Kembali</button>
+  <button class="btn-back" onclick="showPage('shop')" style="max-width:1280px;margin:0 auto;display:flex">← Back</button>
   <div class="info-page-wrap">
-    <h1>Cara Belanja</h1>
+    <h1>How to Shop</h1>
 
     <div class="info-block">
-      <h3>Cara Berbelanja di Dwie Foss</h3>
+      <h3>How to Shop at Dwie Foss</h3>
       <ol>
-        <li>Pilih produk yang ingin kamu beli.</li>
-        <li>Klik "Tambah ke Keranjang" atau "Beli Sekarang".</li>
-        <li>Isi data pengiriman di halaman checkout, lalu klik "Buat Pesanan".</li>
-        <li>Kamu akan mendapatkan nomor pesanan dan info rekening untuk transfer.</li>
-        <li>Konfirmasi pembayaran via WhatsApp dengan menyebutkan nomor pesanan, nama pengirim, tanggal transfer, dan jumlah transfer.</li>
-        <li>Setelah pembayaran kami konfirmasi, pesanan segera kami proses.</li>
+        <li>Choose the product you'd like to buy.</li>
+        <li>Click "Add to Cart" or "Order Now".</li>
+        <li>Fill in your shipping details on the checkout page, then submit your order.</li>
+        <li>You'll get an order number and an order summary with a WhatsApp confirmation button.</li>
+        <li>Tap the WhatsApp button to confirm your order with us directly.</li>
+        <li>Once confirmed, we'll process your order right away.</li>
       </ol>
     </div>
 
     <div class="info-block">
       <h3>First Pay First Serve</h3>
-      <p>Produk yang dijual menggunakan sistem 'first-pay-first-serve', di mana barang yang sudah dipesan dapat dibeli oleh pelanggan lain sebelum kamu melakukan pembayaran. Pesanan yang belum dibayar akan otomatis dibatalkan apabila pembayaran tidak dilakukan dalam waktu 24 jam.</p>
+      <p>Products are sold on a first-pay-first-serve basis — an item you've ordered may still be purchased by another customer before your payment is completed. Unpaid orders are automatically cancelled if payment isn't made within 24 hours.</p>
     </div>
 
     <div class="info-block" id="konfirmasi-pembayaran">
-      <h3>Konfirmasi Pembayaran</h3>
-      <p>Saat ini kami hanya melayani pembayaran melalui transfer bank. Silakan konfirmasi pembayaranmu langsung via WhatsApp ke <strong style="color:var(--espresso)">0812-0000-0000</strong> dengan menyebutkan nomor pesanan, nama pengirim, tanggal transfer, dan jumlah transfer.</p>
+      <h3>Order Confirmation</h3>
+      <p>After placing your order, tap the WhatsApp confirmation button on the order summary page to reach us directly at <strong style="color:var(--espresso)">0812-0000-0000</strong>. We'll share payment and shipping details there.</p>
     </div>
 
     <div class="info-block">
-      <h3>Tunggu Pesanan</h3>
-      <p>Kami akan memverifikasi pembayaran dan mengirimkan pesananmu setelah pembayaran disetujui. Pesanan akan tiba dalam waktu 2–7 hari kerja tergantung lama pihak ekspedisi mengirimkan barang ke alamatmu.</p>
+      <h3>Order Processing</h3>
+      <p>We'll verify your payment and ship your order once it's confirmed. Delivery typically takes 2–7 business days depending on the courier.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════ PAGE: RETURN AND REFUND POLICY ════ -->
+<div class="page" id="page-return-policy">
+  <button class="btn-back" onclick="showPage('shop')" style="max-width:1280px;margin:0 auto;display:flex">← Back</button>
+  <div class="info-page-wrap">
+    <h1>Return and Refund Policy</h1>
+    <div class="info-block">
+      <p>Return and refund policy content coming soon.</p>
     </div>
   </div>
 </div>
@@ -729,8 +743,9 @@
       </div>
       <div class="footer-col">
         <h4>Information</h4>
-        <a onclick="showPage('cara-belanja')">Cara Belanja</a>
-        <a onclick="goToKonfirmasi()">Konfirmasi Pembayaran</a>
+        <a onclick="showPage('cara-belanja')">How to Shop</a>
+        <a onclick="goToKonfirmasi()">Order Confirmation</a>
+        <a onclick="showPage('return-policy')">Return and Refund Policy</a>
       </div>
       <div class="footer-col">
         <h4>Follow Us On</h4>
@@ -799,7 +814,7 @@ const PAGE_SIZE = 24;
 
 // ── FORMAT RUPIAH ──
 function formatRp(n) {
-  return 'Rp ' + Number(n).toLocaleString('id-ID');
+  return 'IDR ' + Number(n).toLocaleString('id-ID');
 }
 
 // ── SAVE CART ──
@@ -1189,6 +1204,11 @@ async function placeOrder() {
   document.getElementById('successContact').innerHTML =
     `${phone}${email ? '<br>' + email : ''}`;
 
+  // Tombol konfirmasi WhatsApp
+  const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
+  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\nNo. Pesanan: ${orderNo}\nNama: ${name}\nNo. HP: ${phone}\n\nProduk:\n${waItemsText}\n\nTotal: ${formatRp(subtotal)}\n\nAlamat Pengiriman:\n${address}, ${city}, ${province}${zip ? ' ' + zip : ''}`;
+  document.getElementById('successWaBtn').href = `https://wa.me/6281200000000?text=${encodeURIComponent(waMessage)}`;
+
   const orderCart = [...cart];
   cart = [];
   saveCart();
@@ -1275,25 +1295,52 @@ async function loadAdminCategories() {
   tbody.innerHTML = data.map(c => `
     <tr>
       <td style="font-size:13px;font-weight:500">${c.name}</td>
-      <td><button class="btn-small btn-danger" onclick="deleteCategory('${c.id}')">Hapus</button></td>
+      <td>
+        <button class="btn-small btn-success" onclick="editCategory('${c.id}')" style="margin-right:4px">Edit</button>
+        <button class="btn-small btn-danger" onclick="deleteCategory('${c.id}')">Hapus</button>
+      </td>
     </tr>
   `).join('');
 }
 
+function editCategory(id) {
+  const current = allCategories.find(c => c.id === id);
+  if (!current) { showToast('Kategori tidak ditemukan'); return; }
+
+  document.getElementById('catEditId').value = current.id;
+  document.getElementById('catName').value = current.name;
+  document.getElementById('categoryFormTitle').textContent = 'Edit Kategori';
+  document.getElementById('catSubmitBtn').textContent = 'Simpan Perubahan';
+  document.getElementById('catCancelEditBtn').style.display = 'block';
+  document.querySelector('#tab-categories .admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function cancelEditCategory() {
+  document.getElementById('catEditId').value = '';
+  document.getElementById('catName').value = '';
+  document.getElementById('categoryFormTitle').textContent = 'Tambah Kategori Baru';
+  document.getElementById('catSubmitBtn').textContent = 'Tambah Kategori';
+  document.getElementById('catCancelEditBtn').style.display = 'none';
+}
+
 async function addCategory() {
+  const editId = document.getElementById('catEditId').value;
   const name = document.getElementById('catName').value.trim();
   if (!name) { showToast('Nama kategori wajib diisi'); return; }
 
-  const { error } = await sb.from('categories').insert({ name });
+  const { error } = editId
+    ? await sb.from('categories').update({ name }).eq('id', editId)
+    : await sb.from('categories').insert({ name });
+
   if (error) {
-    if (error.code === '23505') showToast('Kategori sudah ada');
-    else showToast('Gagal menambah kategori');
+    if (error.code === '23505') showToast('Kategori dengan nama itu sudah ada');
+    else showToast(editId ? 'Gagal mengubah kategori' : 'Gagal menambah kategori');
     console.error(error);
     return;
   }
 
-  showToast('Kategori ditambahkan ✓');
-  document.getElementById('catName').value = '';
+  showToast(editId ? 'Kategori diperbarui ✓' : 'Kategori ditambahkan ✓');
+  cancelEditCategory();
   loadAdminCategories();
   loadCategories();
 }
@@ -1308,24 +1355,66 @@ async function deleteCategory(id) {
 }
 
 // ── ADMIN: ORDERS ──
+let allOrders = [];
+
 async function loadAdminOrders() {
   const el = document.getElementById('ordersList');
   el.innerHTML = '<div class="empty-state">Memuat pesanan...</div>';
 
   const { data, error } = await sb.from('orders').select('*').order('created_at', { ascending: false });
   if (error) { el.innerHTML = '<div class="empty-state">Gagal memuat pesanan</div>'; return; }
-  if (data.length === 0) { el.innerHTML = '<div class="empty-state">Belum ada pesanan masuk</div>'; return; }
+
+  allOrders = data;
+  renderAdminOrdersTable();
+}
+
+function resetOrderFilters() {
+  document.getElementById('orderSearch').value = '';
+  document.getElementById('orderDateFrom').value = '';
+  document.getElementById('orderDateTo').value = '';
+  renderAdminOrdersTable();
+}
+
+function renderAdminOrdersTable() {
+  const el = document.getElementById('ordersList');
+  const q = (document.getElementById('orderSearch')?.value || '').trim().toLowerCase();
+  const dateFrom = document.getElementById('orderDateFrom')?.value || '';
+  const dateTo = document.getElementById('orderDateTo')?.value || '';
+
+  let orders = allOrders;
+
+  if (q) {
+    orders = orders.filter(o => {
+      const items = Array.isArray(o.items) ? o.items : [];
+      const nameMatch = (o.customer_name || '').toLowerCase().includes(q);
+      const productMatch = items.some(i => (i.name || '').toLowerCase().includes(q) || (i.brand || '').toLowerCase().includes(q));
+      return nameMatch || productMatch;
+    });
+  }
+  if (dateFrom) orders = orders.filter(o => o.created_at >= dateFrom);
+  if (dateTo) orders = orders.filter(o => o.created_at <= dateTo + 'T23:59:59');
+
+  if (allOrders.length === 0) { el.innerHTML = '<div class="empty-state">Belum ada pesanan masuk</div>'; return; }
+  if (orders.length === 0) { el.innerHTML = '<div class="empty-state">Tidak ada pesanan yang cocok dengan filter</div>'; return; }
 
   el.innerHTML = `<div class="admin-table-wrap"><table class="admin-table">
     <thead><tr><th>Tanggal</th><th>Nama</th><th>Total</th><th>Status</th><th>Aksi</th></tr></thead>
     <tbody>
-      ${data.map(o => {
+      ${orders.map(o => {
         const items = Array.isArray(o.items) ? o.items : [];
         const itemsHtml = items.map(i => `
           <div class="order-item-row">
             <span>${i.brand} — ${i.name}${i.qty>1?' x'+i.qty:''}</span>
             <span>${formatRp(i.price * i.qty)}</span>
           </div>`).join('');
+        const history = allOrders.filter(h => h.customer_phone === o.customer_phone && h.id !== o.id);
+        const historyHtml = history.length > 0
+          ? history.map(h => `
+            <div class="order-item-row">
+              <span>${h.order_no} — ${new Date(h.created_at).toLocaleDateString('id-ID')}</span>
+              <span>${formatRp(h.total)}</span>
+            </div>`).join('')
+          : `<span style="font-size:11px">Belum ada pesanan lain dari nomor ini</span>`;
         return `
         <tr>
           <td style="font-size:11px;color:var(--warm-gray)">${new Date(o.created_at).toLocaleDateString('id-ID')}</td>
@@ -1352,6 +1441,8 @@ async function loadAdminOrders() {
               ${o.address}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
               <strong>Produk yang Dipesan:</strong>
               <div class="order-items-list">${itemsHtml}</div>
+              <strong style="display:block;margin-top:8px">Riwayat Pembelian Pelanggan Ini:</strong>
+              <div class="order-items-list">${historyHtml}</div>
             </div>
           </td>
         </tr>`;
@@ -1387,10 +1478,18 @@ async function loadAdminProducts() {
     const { data: covers } = await sb.from('product_images').select('product_id, image_url').in('product_id', ids).order('sort_order', { ascending: true });
     if (covers) covers.forEach(c => { if (!coverMap[c.product_id]) coverMap[c.product_id] = c.image_url; });
   }
-  const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
-  allProducts = products;
+  allProducts = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
+  renderAdminProductsTable();
+}
 
-  if (products.length === 0) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Belum ada produk</td></tr>'; return; }
+function renderAdminProductsTable() {
+  const tbody = document.getElementById('productsTableBody');
+  const q = (document.getElementById('adminProductSearch')?.value || '').trim().toLowerCase();
+  const products = q
+    ? allProducts.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.brand && p.brand.toLowerCase().includes(q)))
+    : allProducts;
+
+  if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${q ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
 
   tbody.innerHTML = products.map(p => `
     <tr>
