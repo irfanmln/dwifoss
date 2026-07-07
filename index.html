@@ -867,6 +867,13 @@ function showPage(name) {
   if (!isAdminPage && onAdminPath) {
     history.replaceState(null, '', '/');
   }
+
+  // Sembunyikan navbar toko, footer, dan tombol WA mengambang di halaman admin
+  document.getElementById('mainNav').style.display = isAdminPage ? 'none' : '';
+  const footerEl = document.querySelector('footer');
+  if (footerEl) footerEl.style.display = isAdminPage ? 'none' : '';
+  const waFloatEl = document.querySelector('.wa-float');
+  if (waFloatEl) waFloatEl.style.display = isAdminPage ? 'none' : '';
 }
 
 // ── TOAST ──
