@@ -468,7 +468,7 @@
         <input class="form-input" id="fieldProvince" type="text" placeholder="DKI Jakarta">
       </div>
     </div>
-    <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Buat Pesanan</button>
+    <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Create Order</button>
   </div>
 </div>
 
@@ -492,7 +492,7 @@
       <div class="bank-detail">
         Klik tombol di bawah untuk konfirmasi pesanan via WhatsApp — kami akan kirimkan detail pembayaran & ongkos kirim langsung di sana.
       </div>
-      <a id="successWaBtn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Konfirmasi via WhatsApp</a>
+      <a id="successWaBtn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Confirm by WhatsApp</a>
     </div>
 
     <!-- Produk dibeli -->
@@ -689,30 +689,16 @@
     <h1>How to Shop</h1>
 
     <div class="info-block">
-      <h3>How to Shop at Dwie Foss</h3>
       <ol>
-        <li>Choose the product you'd like to buy.</li>
-        <li>Click "Add to Cart" or "Order Now".</li>
-        <li>Fill in your shipping details on the checkout page, then submit your order.</li>
-        <li>You'll get an order number and an order summary with a WhatsApp confirmation button.</li>
-        <li>Tap the WhatsApp button to confirm your order with us directly.</li>
-        <li>Once confirmed, we'll process your order right away.</li>
+        <li>Pilih produk yang ingin kamu beli.</li>
+        <li>Klik "Add to Cart" atau "Order Now".</li>
+        <li>Isi data pengiriman di halaman Check Out, lalu klik "Create Order".</li>
+        <li>Periksa kembali data pengiriman lalu klik "Confirm by WhatsApp".</li>
+        <li>Tunggu admin untuk memfollow-up pesanan pada jam operasional.</li>
+        <li>Setelah terkonfirmasi, pesanan akan segera kami proses.</li>
+        <li>Batas waktu pembayaran max 6 jam setelah invoice diberikan. Apabila lewat dari itu maka produk berhak dijual kembali kepada pembeli lain.</li>
+        <li>Untuk resi pengiriman bisa direquest pada H+1 (jam operasional).</li>
       </ol>
-    </div>
-
-    <div class="info-block">
-      <h3>First Pay First Serve</h3>
-      <p>Products are sold on a first-pay-first-serve basis — an item you've ordered may still be purchased by another customer before your payment is completed. Unpaid orders are automatically cancelled if payment isn't made within 24 hours.</p>
-    </div>
-
-    <div class="info-block" id="konfirmasi-pembayaran">
-      <h3>Order Confirmation</h3>
-      <p>After placing your order, tap the WhatsApp confirmation button on the order summary page to reach us directly at <strong style="color:var(--espresso)">0812-0000-0000</strong>. We'll share payment and shipping details there.</p>
-    </div>
-
-    <div class="info-block">
-      <h3>Order Processing</h3>
-      <p>We'll verify your payment and ship your order once it's confirmed. Delivery typically takes 2–7 business days depending on the courier.</p>
     </div>
   </div>
 </div>
@@ -723,7 +709,16 @@
   <div class="info-page-wrap">
     <h1>Return and Refund Policy</h1>
     <div class="info-block">
-      <p>Return and refund policy content coming soon.</p>
+      <ol>
+        <li>Komplain tentang produk max 1x24 jam setelah produk diterima, dan WAJIB menyertakan video unboxing lengkap.</li>
+        <li>Komplain disampaikan via WhatsApp.</li>
+        <li>Untuk retur produk hanya berlaku untuk produk salah kirim atau produk deffect.</li>
+        <li>Produk yg diretur dikirimkan max 1x24 jam setelah diinfo alamat retur.</li>
+        <li>Kondisi produk yg diretur WAJIB sesuai dengan kondisi pada saat diterima, belum pernah dipakai, kemasan plastik/wrap masih utuh, tag produk belum dilepas.</li>
+        <li>Produk dikemas kembali menggunakan bubblewrap (mohon untuk mengemas dengan hati-hati, karena produk masih menjadi tanggung jawab Anda sampai kami menerimanya kembali).</li>
+        <li>Kami akan melakukan pengecekan setelah produk kami terima, dan kami berhak menolak proses retur apabila ada persyaratan yang tidak dipenuhi.</li>
+        <li>Estimasi proses refund dana selama 2-3 hari kerja sejak produk retur diterima.</li>
+      </ol>
     </div>
   </div>
 </div>
@@ -744,7 +739,6 @@
       <div class="footer-col">
         <h4>Information</h4>
         <a onclick="showPage('cara-belanja')">How to Shop</a>
-        <a onclick="goToKonfirmasi()">Order Confirmation</a>
         <a onclick="showPage('return-policy')">Return and Refund Policy</a>
       </div>
       <div class="footer-col">
@@ -772,13 +766,6 @@
 </a>
 
 <script>
-function goToKonfirmasi() {
-  showPage('cara-belanja');
-  setTimeout(() => {
-    document.getElementById('konfirmasi-pembayaran').scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }, 50);
-}
-
 function renderFooterShopBy() {
   const el = document.getElementById('footerShopBy');
   if (!el) return;
@@ -1172,7 +1159,7 @@ async function placeOrder() {
   });
 
   btn.disabled = false;
-  btn.textContent = 'Buat Pesanan';
+  btn.textContent = 'Create Order';
 
   if (error) { showToast('Gagal membuat pesanan. Coba lagi.'); console.error(error); return; }
 
