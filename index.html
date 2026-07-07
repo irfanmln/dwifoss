@@ -56,7 +56,8 @@
   .mobile-menu-link.mobile-menu-sale { color: #c0392b; }
   .mobile-menu-parent-row { display: flex; align-items: center; border-bottom: 1px solid var(--stone); }
   .mobile-menu-parent-row .mobile-menu-link { flex: 1; border-bottom: none; }
-  .mobile-menu-expand-btn { background: none; border: none; padding: 14px 4px 14px 12px; cursor: pointer; color: var(--warm-gray); font-size: 12px; transition: transform 0.2s; }
+  .mobile-menu-expand-btn { background: none; border: 1px solid var(--stone); border-radius: 6px; width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--espresso); transition: transform 0.2s, background 0.2s; }
+  .mobile-menu-expand-btn:active { background: var(--stone); }
   .mobile-menu-expand-btn.open { transform: rotate(180deg); }
   .mobile-menu-children { display: none; flex-direction: column; }
   .mobile-menu-children.open { display: flex; }
@@ -70,7 +71,7 @@
   .mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--stone); }
   .mobile-menu-header span { font-family: var(--serif); font-size: 22px; font-weight: 300; letter-spacing: 6px; text-transform: uppercase; }
   .mobile-menu-close { background: none; border: none; font-size: 28px; cursor: pointer; color: var(--espresso); line-height: 1; }
-  .mobile-menu-links { padding: 24px; display: flex; flex-direction: column; gap: 4px; }
+  .mobile-menu-links { padding: 24px; display: flex; flex-direction: column; gap: 4px; flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; }
   .mobile-menu-link { padding: 14px 0; font-size: 13px; letter-spacing: 2px; text-transform: uppercase; color: var(--espresso); cursor: pointer; border-bottom: 1px solid var(--stone); background: none; border-left: none; border-right: none; border-top: none; font-family: var(--sans); text-align: left; }
   .mobile-menu-link.active { color: var(--caramel); }
 
@@ -1477,7 +1478,9 @@ function renderNavCategories() {
       return `
         <div class="mobile-menu-parent-row">
           <button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>
-          <button class="mobile-menu-expand-btn" onclick="toggleMobileCategory('${cat.id}', event)">▾</button>
+          <button class="mobile-menu-expand-btn" onclick="toggleMobileCategory('${cat.id}', event)" aria-label="Buka sub-kategori ${cat.name}">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
         </div>
         <div class="mobile-menu-children" id="mobile-children-${cat.id}">
           ${cat.children.map(ch => `<button class="mobile-menu-link mobile-menu-sublink" onclick="mobileFilterCategory('${ch.id}', this)">${ch.name}</button>`).join('')}
