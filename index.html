@@ -81,7 +81,8 @@
   .hero-carousel-slide { flex: 0 0 100%; min-width: 0; }
   .hero-carousel-slide img { display: block; width: 100%; aspect-ratio: 2/1; object-fit: cover; background: var(--stone); }
   @media (min-width: 768px) {
-    .hero-carousel-slide img { max-height: 550px; }
+    .hero-carousel-slide { display: flex; justify-content: center; background: var(--stone); }
+    .hero-carousel-slide img { width: auto; max-width: 100%; height: auto; max-height: 550px; aspect-ratio: 2/1; object-fit: contain; }
   }
   .hero-carousel-dots { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
   .hero-carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); cursor: pointer; border: none; padding: 0; transition: background 0.2s; }
