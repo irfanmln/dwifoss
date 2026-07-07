@@ -54,6 +54,12 @@
   .nav-cat-dropdown .nav-cat-link { border-bottom: none; text-align: left; }
   .mobile-menu-sublink { padding-left: 28px !important; font-size: 12px !important; color: var(--warm-gray); }
   .mobile-menu-link.mobile-menu-sale { color: #c0392b; }
+  .mobile-menu-parent-row { display: flex; align-items: center; border-bottom: 1px solid var(--stone); }
+  .mobile-menu-parent-row .mobile-menu-link { flex: 1; border-bottom: none; }
+  .mobile-menu-expand-btn { background: none; border: none; padding: 14px 4px 14px 12px; cursor: pointer; color: var(--warm-gray); font-size: 12px; transition: transform 0.2s; }
+  .mobile-menu-expand-btn.open { transform: rotate(180deg); }
+  .mobile-menu-children { display: none; flex-direction: column; }
+  .mobile-menu-children.open { display: flex; }
 
   /* BURGER */
   .burger-btn { background: none; border: none; cursor: pointer; padding: 8px; color: var(--espresso); }
@@ -991,6 +997,16 @@ function mobileFilterCategory(cat, btn) {
   showPage('shop');
 }
 
+// Buka/tutup sub-kategori di menu mobile tanpa menutup menu atau ikut memfilter
+function toggleMobileCategory(categoryId, event) {
+  event.stopPropagation();
+  const childrenEl = document.getElementById('mobile-children-' + categoryId);
+  const btn = event.currentTarget;
+  if (!childrenEl) return;
+  const isOpen = childrenEl.classList.toggle('open');
+  btn.classList.toggle('open', isOpen);
+}
+
 function applyFilter() {
   let title = 'Semua Produk';
   if (currentCategory === 'new-arrivals') title = 'New Arrivals';
@@ -1454,10 +1470,19 @@ function renderNavCategories() {
   mobileEl.innerHTML =
     `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>` +
     `<button class="mobile-menu-link" onclick="mobileFilterCategory('new-arrivals', this)">New Arrivals</button>` +
-    categoryTree.map(cat =>
-      `<button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>` +
-      cat.children.map(ch => `<button class="mobile-menu-link mobile-menu-sublink" onclick="mobileFilterCategory('${ch.id}', this)">${ch.name}</button>`).join('')
-    ).join('') +
+    categoryTree.map(cat => {
+      if (cat.children.length === 0) {
+        return `<button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>`;
+      }
+      return `
+        <div class="mobile-menu-parent-row">
+          <button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>
+          <button class="mobile-menu-expand-btn" onclick="toggleMobileCategory('${cat.id}', event)">▾</button>
+        </div>
+        <div class="mobile-menu-children" id="mobile-children-${cat.id}">
+          ${cat.children.map(ch => `<button class="mobile-menu-link mobile-menu-sublink" onclick="mobileFilterCategory('${ch.id}', this)">${ch.name}</button>`).join('')}
+        </div>`;
+    }).join('') +
     `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('sale', this)">Sale</button>` +
     `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('clearance', this)">Clearance Sale</button>`;
 
