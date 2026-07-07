@@ -76,13 +76,15 @@
   .page.active { display: block; }
 
   /* HERO CAROUSEL */
-  .hero-carousel { position: relative; overflow: hidden; width: 100%; }
+  .hero-carousel { position: relative; overflow: hidden; width: 100%; touch-action: pan-y; }
   .hero-carousel-track { display: flex; transition: transform 0.4s ease; }
   .hero-carousel-slide { flex: 0 0 100%; min-width: 0; }
   .hero-carousel-slide picture, .hero-carousel-slide img { display: block; width: 100%; }
   .hero-carousel-slide img { aspect-ratio: 2/1; object-fit: cover; background: var(--stone); }
   @media (min-width: 768px) {
-    .hero-carousel-slide img { aspect-ratio: 16/9; max-height: 520px; }
+    .hero-carousel-slide { display: flex; justify-content: center; background: var(--stone); }
+    .hero-carousel-slide picture { display: flex; justify-content: center; width: 100%; }
+    .hero-carousel-slide img { width: auto; max-width: 100%; height: auto; max-height: 400px; aspect-ratio: 16/9; object-fit: contain; }
   }
   .hero-carousel-dots { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
   .hero-carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); cursor: pointer; border: none; padding: 0; transition: background 0.2s; }
@@ -2153,6 +2155,25 @@ function renderHeroCarousel() {
 
   updateBannerTrackPosition();
   startBannerAutoplay();
+  initHeroSwipe();
+}
+
+// Swipe geser untuk mobile (touchstart/touchend, threshold biar ga kepencet gak sengaja)
+let heroTouchStartX = null;
+
+function initHeroSwipe() {
+  const el = document.getElementById('heroCarousel');
+  if (!el || el.dataset.swipeInit) return;
+  el.dataset.swipeInit = '1';
+  el.addEventListener('touchstart', e => { heroTouchStartX = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (heroTouchStartX === null || banners.length <= 1) return;
+    const dx = e.changedTouches[0].clientX - heroTouchStartX;
+    heroTouchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) goToBanner((bannerIndex + 1) % banners.length);
+    else goToBanner((bannerIndex - 1 + banners.length) % banners.length);
+  }, { passive: true });
 }
 
 function updateBannerTrackPosition() {
