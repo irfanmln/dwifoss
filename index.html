@@ -41,10 +41,20 @@
     .nav-cats { display: block; }
     .burger-btn { display: none !important; }
   }
-  .nav-cats-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; gap: 0; }
-  .nav-cat-link { padding: 10px 16px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; background: none; border: none; font-family: var(--sans); border-bottom: 2px solid transparent; transition: all 0.2s; }
+  .nav-cats-inner { max-width: 1280px; margin: 0 auto; padding: 0 24px; display: flex; gap: 0; overflow-x: auto; scrollbar-width: thin; }
+  .nav-cats-inner > * { flex-shrink: 0; }
+  .nav-cat-link { padding: 10px 16px; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; background: none; border: none; font-family: var(--sans); border-bottom: 2px solid transparent; transition: all 0.2s; white-space: nowrap; }
   .nav-cat-link:hover { color: var(--espresso); }
   .nav-cat-link.active { color: var(--espresso); border-bottom-color: var(--caramel); }
+  .nav-cat-link.nav-cat-sale { color: #c0392b; }
+  .nav-cat-link.nav-cat-sale:hover { color: #8e2a1e; }
+  .nav-cat-link.nav-cat-sale.active { border-bottom-color: #c0392b; }
+  .nav-cat-group { position: relative; }
+  .nav-cat-dropdown { display: none; position: absolute; top: 100%; left: 0; background: var(--white); border: 1px solid var(--stone); min-width: 190px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 250; flex-direction: column; padding: 4px 0; }
+  .nav-cat-group:hover .nav-cat-dropdown { display: flex; }
+  .nav-cat-dropdown .nav-cat-link { border-bottom: none; text-align: left; }
+  .mobile-menu-sublink { padding-left: 28px !important; font-size: 12px !important; color: var(--warm-gray); }
+  .mobile-menu-link.mobile-menu-sale { color: #c0392b; }
 
   /* BURGER */
   .burger-btn { background: none; border: none; cursor: pointer; padding: 8px; color: var(--espresso); }
@@ -606,8 +616,27 @@
         </div>
         <div class="form-group">
           <label class="form-label">Kategori</label>
-          <select class="form-input" id="pCategory">
+          <select class="form-input" id="pCategory" onchange="renderSubCategoryOptions()">
             <option value="">-- Pilih Kategori --</option>
+          </select>
+        </div>
+        <div class="form-group" id="pSubCategoryWrap" style="display:none">
+          <label class="form-label">Sub-Kategori (opsional)</label>
+          <select class="form-input" id="pSubCategory">
+            <option value="">-- Tidak ada --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label" style="display:flex;align-items:center;gap:8px;cursor:pointer;text-transform:none;font-size:13px">
+            <input type="checkbox" id="pIsNewArrival" style="width:auto"> New Arrival
+          </label>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Status Sale</label>
+          <select class="form-input" id="pSaleTier">
+            <option value="">-- Normal (tidak sale) --</option>
+            <option value="sale">Sale</option>
+            <option value="clearance">Clearance Sale</option>
           </select>
         </div>
         <div class="form-group">
@@ -660,6 +689,12 @@
         <div class="form-group">
           <label class="form-label">Nama Kategori</label>
           <input class="form-input" id="catName" placeholder="Contoh: Sepatu, Jam Tangan">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Kategori Induk (opsional)</label>
+          <select class="form-input" id="catParentId">
+            <option value="">-- Tidak ada (kategori utama) --</option>
+          </select>
         </div>
         <br>
         <button class="btn-primary" id="catSubmitBtn" onclick="addCategory()">Tambah Kategori</button>
@@ -769,15 +804,18 @@
 function renderFooterShopBy() {
   const el = document.getElementById('footerShopBy');
   if (!el) return;
-  el.innerHTML = allCategories.map(c =>
-    `<a onclick="goShopFilterFromFooter('${c.name}')">${c.name}</a>`
+  el.innerHTML = categoryTree.map(c =>
+    `<a onclick="goShopFilterFromFooter('${c.id}')">${c.name}</a>`
   ).join('');
 }
 
-function goShopFilterFromFooter(cat) {
+function goShopFilterFromFooter(categoryId) {
   showPage('shop');
-  const btn = Array.from(document.querySelectorAll('.nav-cat-link')).find(b => b.textContent === cat);
-  if (btn) { btn.click(); }
+  document.querySelectorAll('.nav-cat-link').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.nav-cat-link[data-cat-id="${categoryId}"]`);
+  if (btn) btn.classList.add('active');
+  currentCategory = categoryId;
+  applyFilter();
 }
 </script>
 
@@ -897,10 +935,24 @@ function mobileFilterCategory(cat, btn) {
 }
 
 function applyFilter() {
-  const title = currentCategory === 'all' ? 'Semua Produk' : currentCategory;
+  let title = 'Semua Produk';
+  if (currentCategory === 'new-arrivals') title = 'New Arrivals';
+  else if (currentCategory === 'sale') title = 'Sale';
+  else if (currentCategory === 'clearance') title = 'Clearance Sale';
+  else if (currentCategory !== 'all') {
+    const cat = allCategories.find(c => c.id === currentCategory);
+    title = cat ? cat.name : 'Semua Produk';
+  }
   document.getElementById('sectionTitle').textContent = currentSearch ? `Hasil pencarian "${currentSearch}"` : title;
 
-  let result = currentCategory === 'all' ? allProducts : allProducts.filter(p => p.category === currentCategory);
+  let result = allProducts;
+  if (currentCategory === 'new-arrivals') result = result.filter(p => p.is_new_arrival);
+  else if (currentCategory === 'sale') result = result.filter(p => p.sale_tier === 'sale');
+  else if (currentCategory === 'clearance') result = result.filter(p => p.sale_tier === 'clearance');
+  else if (currentCategory !== 'all') {
+    const ids = categoryIdsForFilter(currentCategory);
+    result = result.filter(p => ids.includes(p.category_id));
+  }
 
   if (currentSearch) {
     const q = currentSearch.toLowerCase();
@@ -913,11 +965,6 @@ function applyFilter() {
   filteredProducts = result;
   currentPage = 1;
   renderProducts();
-}
-
-function filterCategory(cat, btn) {
-  currentCategory = cat;
-  applyFilter();
 }
 
 // ── SEARCH ──
@@ -963,7 +1010,10 @@ function renderProducts() {
         ? `<img class="product-img" src="${coverUrl}" alt="${p.name}" loading="lazy">`
         : `<div class="product-img-placeholder">👜</div>`}
       <div class="product-info">
-        <div style="display:flex;gap:6px;margin-bottom:8px">
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
+          ${p.is_new_arrival ? `<span class="product-badge">New</span>` : ''}
+          ${p.sale_tier === 'sale' ? `<span class="discount-badge">Sale</span>` : ''}
+          ${p.sale_tier === 'clearance' ? `<span class="discount-badge">Clearance</span>` : ''}
           ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
           ${hasDiscount ? `<span class="discount-badge">-${discountPct}%</span>` : ''}
         </div>
@@ -1017,7 +1067,10 @@ async function openDetail(id) {
     (hasDiscount ? `<span class="detail-price-original">${formatRp(currentProduct.original_price)}</span><span class="detail-discount-badge">-${discountPct}%</span>` : '');
   document.getElementById('detailDesc').innerHTML = (currentProduct.description || '').replace(/\n/g, '<br>');
   const catEl = document.getElementById('detailCategory');
-  if (catEl) catEl.textContent = currentProduct.category || '';
+  if (catEl) {
+    const cat = currentProduct.category_id ? allCategories.find(c => c.id === currentProduct.category_id) : null;
+    catEl.textContent = cat ? cat.name : '';
+  }
 
   // Load semua foto dari product_images
   const { data: imgs } = await sb.from('product_images').select('*').eq('product_id', id).order('sort_order', { ascending: true });
@@ -1242,12 +1295,77 @@ function switchAdminTab(tab) {
 }
 
 // ── CATEGORIES (GLOBAL, dipakai navbar/mobile/admin) ──
-let allCategories = [];
+let allCategories = []; // flat list {id, name, parent_id}
+let categoryTree = [];  // top-level categories with .children
+
+const TOP_LEVEL_ORDER = ['Bags', 'Wallets', 'Watches', 'Pouches & Wristlets', 'Eyeglasses', 'Shoes', 'Accessories', 'Apparels', 'Men'];
+const CHILD_ORDER = {
+  'Bags': ['Crossbody', 'Shoulder Bag', 'Satchel', 'Mini Bag', 'Belt Bag', 'Tote', 'Backpack'],
+  'Eyeglasses': ['Sunglasses', 'Eyeglasses'],
+  'Men': ['Bags', 'Watches', 'Wallets', 'Accessories'],
+};
+
+function sortByOrder(list, orderArr) {
+  return [...list].sort((a, b) => {
+    const ia = orderArr.indexOf(a.name), ib = orderArr.indexOf(b.name);
+    if (ia === -1 && ib === -1) return a.name.localeCompare(b.name);
+    if (ia === -1) return 1;
+    if (ib === -1) return -1;
+    return ia - ib;
+  });
+}
+
+function buildCategoryTree(flat) {
+  const byId = {};
+  flat.forEach(c => { byId[c.id] = { ...c, children: [] }; });
+  const roots = [];
+  flat.forEach(c => {
+    if (c.parent_id && byId[c.parent_id]) byId[c.parent_id].children.push(byId[c.id]);
+    else if (!c.parent_id) roots.push(byId[c.id]);
+  });
+  roots.forEach(r => { r.children = sortByOrder(r.children, CHILD_ORDER[r.name] || []); });
+  return sortByOrder(roots, TOP_LEVEL_ORDER);
+}
+
+// Kategori + semua anak langsungnya (dipakai saat filter kategori induk supaya ikut semua sub-kategori)
+function categoryIdsForFilter(categoryId) {
+  const childIds = allCategories.filter(c => c.parent_id === categoryId).map(c => c.id);
+  return [categoryId, ...childIds];
+}
+
+// Isi dropdown sub-kategori di form produk admin berdasarkan kategori utama yang dipilih
+function renderSubCategoryOptions(selectedSubId) {
+  const catEl = document.getElementById('pCategory');
+  const wrap = document.getElementById('pSubCategoryWrap');
+  const subSelect = document.getElementById('pSubCategory');
+  if (!catEl || !wrap || !subSelect) return;
+
+  const parentId = catEl.value;
+  const parent = allCategories.find(c => c.id === parentId);
+  const children = parentId ? sortByOrder(allCategories.filter(c => c.parent_id === parentId), CHILD_ORDER[parent?.name] || []) : [];
+
+  if (children.length === 0) {
+    wrap.style.display = 'none';
+    subSelect.innerHTML = '<option value="">-- Tidak ada --</option>';
+    return;
+  }
+
+  wrap.style.display = 'block';
+  subSelect.innerHTML = '<option value="">-- Tidak ada --</option>' +
+    children.map(c => `<option value="${c.id}" ${c.id === selectedSubId ? 'selected' : ''}>${c.name}</option>`).join('');
+}
+
+function getSelectedProductCategoryId() {
+  const sub = document.getElementById('pSubCategory').value;
+  const main = document.getElementById('pCategory').value;
+  return sub || main || null;
+}
 
 async function loadCategories() {
   const { data, error } = await sb.from('categories').select('*').order('name', { ascending: true });
   if (error) { console.error(error); return; }
   allCategories = data;
+  categoryTree = buildCategoryTree(data);
   renderNavCategories();
 }
 
@@ -1255,16 +1373,48 @@ function renderNavCategories() {
   const navEl = document.getElementById('navCatsInner');
   const mobileEl = document.getElementById('mobileMenuLinks');
   const selectEl = document.getElementById('pCategory');
+  const parentSelectEl = document.getElementById('catParentId');
 
-  navEl.innerHTML = `<button class="nav-cat-link active" onclick="navFilterCategory('all', this)">Semua</button>` +
-    allCategories.map(c => `<button class="nav-cat-link" onclick="navFilterCategory('${c.name}', this)">${c.name}</button>`).join('');
+  navEl.innerHTML =
+    `<button class="nav-cat-link active" onclick="navFilterCategory('all', this)" data-cat-id="all">Semua</button>` +
+    `<button class="nav-cat-link" onclick="navFilterCategory('new-arrivals', this)" data-cat-id="new-arrivals">New Arrivals</button>` +
+    categoryTree.map(cat => {
+      if (cat.children.length > 0) {
+        return `<div class="nav-cat-group">
+          <button class="nav-cat-link" onclick="navFilterCategory('${cat.id}', this)" data-cat-id="${cat.id}">${cat.name}</button>
+          <div class="nav-cat-dropdown">
+            ${cat.children.map(ch => `<button class="nav-cat-link" onclick="navFilterCategory('${ch.id}', this)" data-cat-id="${ch.id}">${ch.name}</button>`).join('')}
+          </div>
+        </div>`;
+      }
+      return `<button class="nav-cat-link" onclick="navFilterCategory('${cat.id}', this)" data-cat-id="${cat.id}">${cat.name}</button>`;
+    }).join('') +
+    `<button class="nav-cat-link nav-cat-sale" onclick="navFilterCategory('sale', this)" data-cat-id="sale">Sale</button>` +
+    `<button class="nav-cat-link nav-cat-sale" onclick="navFilterCategory('clearance', this)" data-cat-id="clearance">Clearance Sale</button>`;
 
-  mobileEl.innerHTML = `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>` +
-    allCategories.map(c => `<button class="mobile-menu-link" onclick="mobileFilterCategory('${c.name}', this)">${c.name}</button>`).join('');
+  mobileEl.innerHTML =
+    `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>` +
+    `<button class="mobile-menu-link" onclick="mobileFilterCategory('new-arrivals', this)">New Arrivals</button>` +
+    categoryTree.map(cat =>
+      `<button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>` +
+      cat.children.map(ch => `<button class="mobile-menu-link mobile-menu-sublink" onclick="mobileFilterCategory('${ch.id}', this)">${ch.name}</button>`).join('')
+    ).join('') +
+    `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('sale', this)">Sale</button>` +
+    `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('clearance', this)">Clearance Sale</button>`;
 
   if (selectEl) {
+    const currentVal = selectEl.value;
     selectEl.innerHTML = `<option value="">-- Pilih Kategori --</option>` +
-      allCategories.map(c => `<option value="${c.name}">${c.name}</option>`).join('');
+      categoryTree.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if ([...selectEl.options].some(o => o.value === currentVal)) selectEl.value = currentVal;
+    renderSubCategoryOptions();
+  }
+
+  if (parentSelectEl) {
+    const currentVal = parentSelectEl.value;
+    parentSelectEl.innerHTML = `<option value="">-- Tidak ada (kategori utama) --</option>` +
+      categoryTree.map(c => `<option value="${c.id}">${c.name}</option>`).join('');
+    if ([...parentSelectEl.options].some(o => o.value === currentVal)) parentSelectEl.value = currentVal;
   }
 
   renderFooterShopBy();
@@ -1279,15 +1429,17 @@ async function loadAdminCategories() {
 
   if (data.length === 0) { tbody.innerHTML = '<tr><td colspan="2" class="empty-state">Belum ada kategori</td></tr>'; return; }
 
-  tbody.innerHTML = data.map(c => `
+  const tree = buildCategoryTree(data);
+  const categoryRow = (c, indented) => `
     <tr>
-      <td style="font-size:13px;font-weight:500">${c.name}</td>
+      <td style="font-size:13px;font-weight:500;${indented ? 'padding-left:28px;color:var(--warm-gray);font-weight:400' : ''}">${indented ? '— ' : ''}${c.name}</td>
       <td>
         <button class="btn-small btn-success" onclick="editCategory('${c.id}')" style="margin-right:4px">Edit</button>
         <button class="btn-small btn-danger" onclick="deleteCategory('${c.id}')">Hapus</button>
       </td>
-    </tr>
-  `).join('');
+    </tr>`;
+
+  tbody.innerHTML = tree.map(c => categoryRow(c, false) + c.children.map(ch => categoryRow(ch, true)).join('')).join('');
 }
 
 function editCategory(id) {
@@ -1296,6 +1448,7 @@ function editCategory(id) {
 
   document.getElementById('catEditId').value = current.id;
   document.getElementById('catName').value = current.name;
+  document.getElementById('catParentId').value = current.parent_id || '';
   document.getElementById('categoryFormTitle').textContent = 'Edit Kategori';
   document.getElementById('catSubmitBtn').textContent = 'Simpan Perubahan';
   document.getElementById('catCancelEditBtn').style.display = 'block';
@@ -1305,6 +1458,7 @@ function editCategory(id) {
 function cancelEditCategory() {
   document.getElementById('catEditId').value = '';
   document.getElementById('catName').value = '';
+  document.getElementById('catParentId').value = '';
   document.getElementById('categoryFormTitle').textContent = 'Tambah Kategori Baru';
   document.getElementById('catSubmitBtn').textContent = 'Tambah Kategori';
   document.getElementById('catCancelEditBtn').style.display = 'none';
@@ -1313,14 +1467,21 @@ function cancelEditCategory() {
 async function addCategory() {
   const editId = document.getElementById('catEditId').value;
   const name = document.getElementById('catName').value.trim();
+  const parentId = document.getElementById('catParentId').value || null;
   if (!name) { showToast('Nama kategori wajib diisi'); return; }
+  if (editId && parentId === editId) { showToast('Kategori tidak bisa jadi induk dirinya sendiri'); return; }
+  if (editId && parentId && allCategories.some(c => c.parent_id === editId)) {
+    showToast('Kategori ini punya sub-kategori, tidak bisa dijadikan sub-kategori juga');
+    return;
+  }
 
+  const payload = { name, parent_id: parentId };
   const { error } = editId
-    ? await sb.from('categories').update({ name }).eq('id', editId)
-    : await sb.from('categories').insert({ name });
+    ? await sb.from('categories').update(payload).eq('id', editId)
+    : await sb.from('categories').insert(payload);
 
   if (error) {
-    if (error.code === '23505') showToast('Kategori dengan nama itu sudah ada');
+    if (error.code === '23505') showToast('Kategori dengan nama itu sudah ada di induk yang sama');
     else showToast(editId ? 'Gagal mengubah kategori' : 'Gagal menambah kategori');
     console.error(error);
     return;
@@ -1531,7 +1692,9 @@ function convertToWebp(file, quality = 0.82) {
 
 async function addProduct() {
   const editId = document.getElementById('pEditId').value;
-  const category = document.getElementById('pCategory').value;
+  const category_id = getSelectedProductCategoryId();
+  const is_new_arrival = document.getElementById('pIsNewArrival').checked;
+  const sale_tier = document.getElementById('pSaleTier').value || null;
   const brand = document.getElementById('pBrand').value.trim();
   const name = document.getElementById('pName').value.trim();
   const price = parseInt(document.getElementById('pPrice').value);
@@ -1553,10 +1716,10 @@ async function addProduct() {
   let dbError;
 
   if (editId) {
-    const { error } = await sb.from('products').update({ brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null }).eq('id', editId);
+    const { error } = await sb.from('products').update({ brand, name, price, original_price, category_id, is_new_arrival, sale_tier, description: description||null, badge: badge||null }).eq('id', editId);
     dbError = error;
   } else {
-    const { data, error } = await sb.from('products').insert({ brand, name, price, original_price, category: category||null, description: description||null, badge: badge||null, is_active: true }).select().single();
+    const { data, error } = await sb.from('products').insert({ brand, name, price, original_price, category_id, is_new_arrival, sale_tier, description: description||null, badge: badge||null, is_active: true }).select().single();
     dbError = error;
     if (data) productId = data.id;
   }
@@ -1657,6 +1820,9 @@ function resetProductForm() {
   ['pBrand','pName','pPrice','pOriginalPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
   document.getElementById('pCategory').value = '';
+  document.getElementById('pIsNewArrival').checked = false;
+  document.getElementById('pSaleTier').value = '';
+  renderSubCategoryOptions();
   document.getElementById('pEditId').value = '';
   document.getElementById('productFormTitle').textContent = 'Tambah Produk Baru';
   document.getElementById('pSubmitBtn').textContent = 'Tambah Produk';
@@ -1669,12 +1835,18 @@ async function editProduct(id) {
   const p = allProducts.find(x => x.id === id);
   if (!p) { showToast('Produk tidak ditemukan'); return; }
 
+  const cat = p.category_id ? allCategories.find(c => c.id === p.category_id) : null;
+  const mainCatId = cat ? (cat.parent_id || cat.id) : '';
+
   document.getElementById('pEditId').value = p.id;
   document.getElementById('pBrand').value = p.brand || '';
   document.getElementById('pName').value = p.name || '';
   document.getElementById('pPrice').value = p.price || '';
   document.getElementById('pOriginalPrice').value = p.original_price || '';
-  document.getElementById('pCategory').value = p.category || '';
+  document.getElementById('pCategory').value = mainCatId;
+  renderSubCategoryOptions(cat && cat.parent_id ? cat.id : undefined);
+  document.getElementById('pIsNewArrival').checked = !!p.is_new_arrival;
+  document.getElementById('pSaleTier').value = p.sale_tier || '';
   document.getElementById('pDesc').value = p.description || '';
   document.getElementById('pBadge').value = p.badge || '';
   document.getElementById('productFormTitle').textContent = 'Edit Produk';
