@@ -75,11 +75,18 @@
   .page { display: none; }
   .page.active { display: block; }
 
-  /* HERO */
-  .hero-banner-img { width: 100%; aspect-ratio: 2/1; object-fit: cover; display: block; background: var(--stone); }
+  /* HERO CAROUSEL */
+  .hero-carousel { position: relative; overflow: hidden; width: 100%; }
+  .hero-carousel-track { display: flex; transition: transform 0.4s ease; }
+  .hero-carousel-slide { flex: 0 0 100%; min-width: 0; }
+  .hero-carousel-slide picture, .hero-carousel-slide img { display: block; width: 100%; }
+  .hero-carousel-slide img { aspect-ratio: 2/1; object-fit: cover; background: var(--stone); }
   @media (min-width: 768px) {
-    .hero-banner-img { max-height: 460px; }
+    .hero-carousel-slide img { aspect-ratio: 16/9; max-height: 520px; }
   }
+  .hero-carousel-dots { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
+  .hero-carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); cursor: pointer; border: none; padding: 0; transition: background 0.2s; }
+  .hero-carousel-dot.active { background: var(--ivory); }
 
   /* SECTION HEADER */
   .section-header { padding: 48px 0 24px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--stone); }
@@ -375,7 +382,10 @@
 
 <!-- ════ PAGE: SHOP ════ -->
 <div class="page active" id="page-shop">
-  <img class="hero-banner-img" id="heroBannerImg" style="display:none" alt="Dwie Foss">
+  <div class="hero-carousel" id="heroCarousel" style="display:none">
+    <div class="hero-carousel-track" id="heroCarouselTrack"></div>
+    <div class="hero-carousel-dots" id="heroCarouselDots"></div>
+  </div>
   <div class="container">
     <div class="search-wrap">
       <input class="search-input" id="searchInput" type="search" placeholder="Cari produk, brand..." oninput="handleSearch()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="q">
@@ -713,17 +723,41 @@
     <!-- TAB: SETTINGS -->
     <div class="admin-section" id="tab-settings">
       <div class="admin-form-card">
-        <h3>Banner Homepage</h3>
+        <h3>Banner Homepage (bisa lebih dari satu, otomatis slide)</h3>
         <div class="form-group">
-          <label class="form-label">Banner (rasio 2:1, otomatis dikonversi ke WebP & dikompres)</label>
-          <div class="photo-upload-zone" id="bannerUploadZone" onclick="document.getElementById('bannerImageInput').click()">
+          <label class="form-label">Gambar Desktop (rasio 16:9, otomatis dikonversi ke WebP & dikompres)</label>
+          <div class="photo-upload-zone" id="bannerDesktopZone" onclick="document.getElementById('bannerDesktopInput').click()">
             <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p>Klik untuk pilih gambar banner</p>
+            <p>Klik untuk pilih gambar desktop</p>
+            <span>JPG, PNG, WEBP — rasio 16:9 disarankan</span>
+          </div>
+          <input type="file" id="bannerDesktopInput" accept="image/*" style="display:none" onchange="handleBannerFileSelect(event, 'desktop')">
+          <div id="bannerDesktopPreview"></div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Gambar Mobile (rasio 2:1, otomatis dikonversi ke WebP & dikompres)</label>
+          <div class="photo-upload-zone" id="bannerMobileZone" onclick="document.getElementById('bannerMobileInput').click()">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <p>Klik untuk pilih gambar mobile</p>
             <span>JPG, PNG, WEBP — rasio 2:1 disarankan</span>
           </div>
-          <input type="file" id="bannerImageInput" accept="image/*" style="display:none" onchange="handleBannerSelect(event)">
-          <div id="bannerPreviewWrap" style="margin-top:8px"></div>
-          <button class="btn-secondary" id="bannerRemoveBtn" onclick="removeBanner()" style="display:none">Hapus Banner</button>
+          <input type="file" id="bannerMobileInput" accept="image/*" style="display:none" onchange="handleBannerFileSelect(event, 'mobile')">
+          <div id="bannerMobilePreview"></div>
+        </div>
+        <br>
+        <button class="btn-primary" id="bannerAddBtn" onclick="addBanner()">Tambah Banner</button>
+
+        <div class="admin-table-wrap" style="margin-top:20px">
+          <table class="admin-table">
+            <thead>
+              <tr>
+                <th>Preview</th>
+                <th>Urutan</th>
+                <th>Aksi</th>
+              </tr>
+            </thead>
+            <tbody id="bannersTableBody"></tbody>
+          </table>
         </div>
       </div>
 
@@ -1318,6 +1352,7 @@ function showAdminPanel(user) {
   loadAdminOrders();
   loadAdminProducts();
   loadAdminCategories();
+  loadAdminBanners();
   loadSiteSettings();
 }
 
@@ -1724,66 +1759,18 @@ function convertToWebp(file, quality = 0.82) {
   });
 }
 
-// ── ADMIN: SITE SETTINGS (banner + sosial media) ──
-let pendingBannerFile = null; // {file, url} kalau admin baru pilih banner baru
-
-let bannerRemoved = false;
-
-function handleBannerSelect(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  pendingBannerFile = { file, url: URL.createObjectURL(file) };
-  bannerRemoved = false;
-  event.target.value = '';
-  renderBannerPreview();
-}
-
-function removeBanner() {
-  pendingBannerFile = null;
-  bannerRemoved = true;
-  renderBannerPreview();
-}
-
-function renderBannerPreview() {
-  const wrap = document.getElementById('bannerPreviewWrap');
-  const removeBtn = document.getElementById('bannerRemoveBtn');
-  if (!wrap) return;
-  const url = bannerRemoved ? null : (pendingBannerFile ? pendingBannerFile.url : (siteSettings.banner_url || null));
-  wrap.innerHTML = url
-    ? `<img src="${url}" style="width:100%;max-width:400px;aspect-ratio:2/1;object-fit:cover;display:block;border:1px solid var(--stone)">`
-    : '<p style="font-size:12px;color:var(--warm-gray)">Belum ada banner</p>';
-  if (removeBtn) removeBtn.style.display = url ? 'block' : 'none';
-}
-
+// ── ADMIN: SITE SETTINGS (sosial media) ──
 async function saveSiteSettings() {
   const btn = document.getElementById('settingsSubmitBtn');
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
-
-  let banner_url = siteSettings.banner_url || null;
-  if (bannerRemoved) {
-    banner_url = null;
-  } else if (pendingBannerFile) {
-    const blob = await convertToWebp(pendingBannerFile.file, 0.82);
-    const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-    const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
-    if (upErr) {
-      showToast('Gagal upload banner');
-      console.error(upErr);
-      btn.disabled = false;
-      btn.textContent = 'Simpan Pengaturan';
-      return;
-    }
-    const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-    banner_url = urlData.publicUrl;
-  }
 
   const instagram_username_1 = document.getElementById('settingIg1').value.trim() || null;
   const instagram_username_2 = document.getElementById('settingIg2').value.trim() || null;
   const tiktok_username = document.getElementById('settingTiktok').value.trim() || null;
 
   const { error } = await sb.from('site_settings')
-    .update({ banner_url, instagram_username_1, instagram_username_2, tiktok_username, updated_at: new Date().toISOString() })
+    .update({ instagram_username_1, instagram_username_2, tiktok_username, updated_at: new Date().toISOString() })
     .eq('id', 1);
 
   btn.disabled = false;
@@ -1792,9 +1779,118 @@ async function saveSiteSettings() {
   if (error) { showToast('Gagal menyimpan pengaturan'); console.error(error); return; }
 
   showToast('Pengaturan disimpan ✓');
-  pendingBannerFile = null;
-  bannerRemoved = false;
   loadSiteSettings();
+}
+
+// ── ADMIN: BANNER MANAGER (multi-slide, desktop 16:9 + mobile 2:1) ──
+let pendingBannerDesktop = null; // {file, url}
+let pendingBannerMobile = null;  // {file, url}
+
+function handleBannerFileSelect(event, type) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const url = URL.createObjectURL(file);
+  if (type === 'desktop') {
+    pendingBannerDesktop = { file, url };
+    document.getElementById('bannerDesktopPreview').innerHTML = `<img src="${url}" style="width:100%;max-width:400px;aspect-ratio:16/9;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
+  } else {
+    pendingBannerMobile = { file, url };
+    document.getElementById('bannerMobilePreview').innerHTML = `<img src="${url}" style="width:100%;max-width:300px;aspect-ratio:2/1;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
+  }
+  event.target.value = '';
+}
+
+async function addBanner() {
+  if (!pendingBannerDesktop && !pendingBannerMobile) { showToast('Upload minimal satu gambar (desktop atau mobile)'); return; }
+
+  const btn = document.getElementById('bannerAddBtn');
+  btn.disabled = true;
+  btn.textContent = 'Menyimpan...';
+
+  let desktop_image_url = null, mobile_image_url = null;
+
+  if (pendingBannerDesktop) {
+    const blob = await convertToWebp(pendingBannerDesktop.file, 0.82);
+    const fileName = `_site/banner-desktop-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+    const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+    if (upErr) { showToast('Gagal upload gambar desktop'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
+    desktop_image_url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
+  }
+
+  if (pendingBannerMobile) {
+    const blob = await convertToWebp(pendingBannerMobile.file, 0.82);
+    const fileName = `_site/banner-mobile-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+    const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+    if (upErr) { showToast('Gagal upload gambar mobile'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
+    mobile_image_url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
+  }
+
+  const nextOrder = banners.length > 0 ? Math.max(...banners.map(b => b.sort_order)) + 1 : 0;
+  const { error } = await sb.from('banners').insert({ desktop_image_url, mobile_image_url, sort_order: nextOrder });
+
+  btn.disabled = false;
+  btn.textContent = 'Tambah Banner';
+
+  if (error) { showToast('Gagal menambah banner'); console.error(error); return; }
+
+  showToast('Banner ditambahkan ✓');
+  pendingBannerDesktop = null;
+  pendingBannerMobile = null;
+  document.getElementById('bannerDesktopPreview').innerHTML = '';
+  document.getElementById('bannerMobilePreview').innerHTML = '';
+  loadAdminBanners();
+  loadBanners();
+}
+
+async function loadAdminBanners() {
+  const { data, error } = await sb.from('banners').select('*').order('sort_order', { ascending: true });
+  if (error) { console.error(error); return; }
+  renderAdminBannersTable(data || []);
+}
+
+function renderAdminBannersTable(list) {
+  const tbody = document.getElementById('bannersTableBody');
+  if (!tbody) return;
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="3" class="empty-state">Belum ada banner</td></tr>'; return; }
+
+  tbody.innerHTML = list.map((b, i) => `
+    <tr>
+      <td>
+        ${b.desktop_image_url ? `<img src="${b.desktop_image_url}" style="width:80px;height:45px;object-fit:cover;display:inline-block;margin-right:4px;border:1px solid var(--stone)" title="Desktop">` : ''}
+        ${b.mobile_image_url ? `<img src="${b.mobile_image_url}" style="width:40px;height:20px;object-fit:cover;display:inline-block;border:1px solid var(--stone)" title="Mobile">` : ''}
+      </td>
+      <td>
+        <button class="btn-small btn-warning" onclick="moveBanner('${b.id}', -1)" style="margin-right:4px" ${i === 0 ? 'disabled' : ''}>↑</button>
+        <button class="btn-small btn-warning" onclick="moveBanner('${b.id}', 1)" ${i === list.length - 1 ? 'disabled' : ''}>↓</button>
+      </td>
+      <td><button class="btn-small btn-danger" onclick="deleteBanner('${b.id}')">Hapus</button></td>
+    </tr>
+  `).join('');
+}
+
+async function moveBanner(id, direction) {
+  const { data, error } = await sb.from('banners').select('*').order('sort_order', { ascending: true });
+  if (error) { showToast('Gagal memuat urutan banner'); return; }
+
+  const idx = data.findIndex(b => b.id === id);
+  const swapIdx = idx + direction;
+  if (idx === -1 || swapIdx < 0 || swapIdx >= data.length) return;
+
+  const a = data[idx], b = data[swapIdx];
+  await sb.from('banners').update({ sort_order: b.sort_order }).eq('id', a.id);
+  await sb.from('banners').update({ sort_order: a.sort_order }).eq('id', b.id);
+
+  loadAdminBanners();
+  loadBanners();
+}
+
+async function deleteBanner(id) {
+  if (!confirm('Hapus banner ini?')) return;
+  const { error } = await sb.from('banners').delete().eq('id', id);
+  if (error) { showToast('Gagal menghapus banner'); return; }
+  showToast('Banner dihapus ✓');
+  loadAdminBanners();
+  loadBanners();
 }
 
 async function addProduct() {
@@ -1988,14 +2084,13 @@ async function deleteProduct(id) {
   loadProducts();
 }
 
-// ── SITE SETTINGS (banner homepage + sosial media) ──
+// ── SITE SETTINGS (sosial media) ──
 let siteSettings = {};
 
 async function loadSiteSettings() {
   const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
   if (error) { console.error(error); return; }
   siteSettings = data || {};
-  renderHeroBanner();
   renderFooterSocial();
 
   // Kalau form pengaturan admin sedang terbuka, isi juga field-fieldnya
@@ -2004,18 +2099,6 @@ async function loadSiteSettings() {
     ig1El.value = siteSettings.instagram_username_1 || '';
     document.getElementById('settingIg2').value = siteSettings.instagram_username_2 || '';
     document.getElementById('settingTiktok').value = siteSettings.tiktok_username || '';
-    renderBannerPreview();
-  }
-}
-
-function renderHeroBanner() {
-  const img = document.getElementById('heroBannerImg');
-  if (!img) return;
-  if (siteSettings.banner_url) {
-    img.src = siteSettings.banner_url;
-    img.style.display = 'block';
-  } else {
-    img.style.display = 'none';
   }
 }
 
@@ -2033,10 +2116,71 @@ function renderFooterSocial() {
   el.innerHTML = links.map(l => `<a href="${l.url}" target="_blank" rel="noopener">${l.svg}<span>${l.label}</span></a>`).join('');
 }
 
+// ── HERO BANNER CAROUSEL (bisa lebih dari satu, auto-slide) ──
+let banners = [];
+let bannerIndex = 0;
+let bannerAutoTimer = null;
+
+async function loadBanners() {
+  const { data, error } = await sb.from('banners').select('*').order('sort_order', { ascending: true });
+  if (error) { console.error(error); return; }
+  banners = data || [];
+  bannerIndex = 0;
+  renderHeroCarousel();
+}
+
+function renderHeroCarousel() {
+  const wrap = document.getElementById('heroCarousel');
+  const track = document.getElementById('heroCarouselTrack');
+  const dots = document.getElementById('heroCarouselDots');
+  if (!wrap) return;
+
+  if (banners.length === 0) { wrap.style.display = 'none'; return; }
+  wrap.style.display = 'block';
+
+  track.innerHTML = banners.map(b => `
+    <div class="hero-carousel-slide">
+      <picture>
+        ${b.desktop_image_url ? `<source media="(min-width: 768px)" srcset="${b.desktop_image_url}">` : ''}
+        <img src="${b.mobile_image_url || b.desktop_image_url}" alt="Dwie Foss">
+      </picture>
+    </div>
+  `).join('');
+
+  dots.innerHTML = banners.length > 1
+    ? banners.map((_, i) => `<button class="hero-carousel-dot" onclick="goToBanner(${i})"></button>`).join('')
+    : '';
+
+  updateBannerTrackPosition();
+  startBannerAutoplay();
+}
+
+function updateBannerTrackPosition() {
+  const track = document.getElementById('heroCarouselTrack');
+  if (track) track.style.transform = `translateX(-${bannerIndex * 100}%)`;
+  document.querySelectorAll('.hero-carousel-dot').forEach((d, i) => d.classList.toggle('active', i === bannerIndex));
+}
+
+function goToBanner(i) {
+  bannerIndex = i;
+  updateBannerTrackPosition();
+  startBannerAutoplay();
+}
+
+function startBannerAutoplay() {
+  clearInterval(bannerAutoTimer);
+  if (banners.length <= 1) return;
+  bannerAutoTimer = setInterval(() => {
+    bannerIndex = (bannerIndex + 1) % banners.length;
+    updateBannerTrackPosition();
+  }, 5000);
+}
+
 // ── INIT ──
 updateCartCount();
 loadCategories();
 loadSiteSettings();
+loadBanners();
 
 // Navbar shadow saat scroll
 window.addEventListener('scroll', () => {
