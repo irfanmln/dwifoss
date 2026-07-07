@@ -77,11 +77,9 @@
 
   /* HERO */
   .hero-banner-img { width: 100%; aspect-ratio: 2/1; object-fit: cover; display: block; background: var(--stone); }
-  .hero { background: var(--espresso); color: var(--ivory); padding: 72px 24px 56px; text-align: center; }
-  .hero-eyebrow { font-size: 11px; letter-spacing: 4px; text-transform: uppercase; color: var(--caramel); margin-bottom: 16px; font-weight: 400; }
-  .hero h1 { font-family: var(--serif); font-size: clamp(38px, 8vw, 64px); font-weight: 300; line-height: 1.15; margin-bottom: 20px; letter-spacing: 1px; }
-  .hero h1 em { font-style: italic; color: var(--caramel); }
-  .hero p { font-size: 14px; color: #BFB8AD; max-width: 300px; margin: 0 auto; line-height: 1.7; font-weight: 300; }
+  @media (min-width: 768px) {
+    .hero-banner-img { max-height: 460px; }
+  }
 
   /* SECTION HEADER */
   .section-header { padding: 48px 0 24px; display: flex; align-items: baseline; justify-content: space-between; border-bottom: 1px solid var(--stone); }
@@ -301,9 +299,10 @@
   .footer-col h4 { font-family: var(--sans); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--espresso); font-weight: 500; margin-bottom: 16px; }
   .footer-col p, .footer-col a { display: block; font-size: 13px; color: var(--warm-gray); line-height: 2; text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--sans); text-align: left; padding: 0; }
   .footer-col a:hover { color: var(--caramel); }
-  .footer-social { display: flex; gap: 10px; margin-top: 4px; }
-  .footer-social a { width: 34px; height: 34px; border: 1px solid var(--stone); display: flex; align-items: center; justify-content: center; color: var(--espresso); transition: all 0.2s; }
-  .footer-social a:hover { background: var(--espresso); color: var(--ivory); border-color: var(--espresso); }
+  .footer-social { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .footer-social a { display: flex; align-items: center; gap: 8px; color: var(--warm-gray); transition: color 0.2s; }
+  .footer-social a svg { flex-shrink: 0; color: var(--espresso); }
+  .footer-social a:hover { color: var(--caramel); }
   .footer-bottom { border-top: 1px solid var(--stone); margin-top: 40px; padding-top: 20px; text-align: center; }
   .footer-bottom p { font-size: 11px; color: var(--warm-gray); letter-spacing: 1px; }
 
@@ -377,11 +376,6 @@
 <!-- ════ PAGE: SHOP ════ -->
 <div class="page active" id="page-shop">
   <img class="hero-banner-img" id="heroBannerImg" style="display:none" alt="Dwie Foss">
-  <div class="hero">
-    <p class="hero-eyebrow">Authenticated Luxury</p>
-    <h1>Tas branded <em>authentic</em> untuk kamu</h1>
-    <p>Koleksi pilihan dari brand premium dunia, 100% original & bergaransi.</p>
-  </div>
   <div class="container">
     <div class="search-wrap">
       <input class="search-input" id="searchInput" type="search" placeholder="Cari produk, brand..." oninput="handleSearch()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="q">
@@ -729,6 +723,7 @@
           </div>
           <input type="file" id="bannerImageInput" accept="image/*" style="display:none" onchange="handleBannerSelect(event)">
           <div id="bannerPreviewWrap" style="margin-top:8px"></div>
+          <button class="btn-secondary" id="bannerRemoveBtn" onclick="removeBanner()" style="display:none">Hapus Banner</button>
         </div>
       </div>
 
@@ -1732,21 +1727,32 @@ function convertToWebp(file, quality = 0.82) {
 // ── ADMIN: SITE SETTINGS (banner + sosial media) ──
 let pendingBannerFile = null; // {file, url} kalau admin baru pilih banner baru
 
+let bannerRemoved = false;
+
 function handleBannerSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
   pendingBannerFile = { file, url: URL.createObjectURL(file) };
+  bannerRemoved = false;
   event.target.value = '';
+  renderBannerPreview();
+}
+
+function removeBanner() {
+  pendingBannerFile = null;
+  bannerRemoved = true;
   renderBannerPreview();
 }
 
 function renderBannerPreview() {
   const wrap = document.getElementById('bannerPreviewWrap');
+  const removeBtn = document.getElementById('bannerRemoveBtn');
   if (!wrap) return;
-  const url = pendingBannerFile ? pendingBannerFile.url : (siteSettings.banner_url || null);
+  const url = bannerRemoved ? null : (pendingBannerFile ? pendingBannerFile.url : (siteSettings.banner_url || null));
   wrap.innerHTML = url
     ? `<img src="${url}" style="width:100%;max-width:400px;aspect-ratio:2/1;object-fit:cover;display:block;border:1px solid var(--stone)">`
     : '<p style="font-size:12px;color:var(--warm-gray)">Belum ada banner</p>';
+  if (removeBtn) removeBtn.style.display = url ? 'block' : 'none';
 }
 
 async function saveSiteSettings() {
@@ -1755,7 +1761,9 @@ async function saveSiteSettings() {
   btn.textContent = 'Menyimpan...';
 
   let banner_url = siteSettings.banner_url || null;
-  if (pendingBannerFile) {
+  if (bannerRemoved) {
+    banner_url = null;
+  } else if (pendingBannerFile) {
     const blob = await convertToWebp(pendingBannerFile.file, 0.82);
     const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
     const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
@@ -1785,6 +1793,7 @@ async function saveSiteSettings() {
 
   showToast('Pengaturan disimpan ✓');
   pendingBannerFile = null;
+  bannerRemoved = false;
   loadSiteSettings();
 }
 
@@ -2017,11 +2026,11 @@ function renderFooterSocial() {
   const el = document.getElementById('footerSocial');
   if (!el) return;
   const links = [];
-  if (siteSettings.instagram_username_1) links.push({ url: `https://www.instagram.com/${siteSettings.instagram_username_1}/`, svg: INSTAGRAM_SVG });
-  if (siteSettings.instagram_username_2) links.push({ url: `https://www.instagram.com/${siteSettings.instagram_username_2}/`, svg: INSTAGRAM_SVG });
-  if (siteSettings.tiktok_username) links.push({ url: `https://www.tiktok.com/@${siteSettings.tiktok_username}`, svg: TIKTOK_SVG });
+  if (siteSettings.instagram_username_1) links.push({ url: `https://www.instagram.com/${siteSettings.instagram_username_1}/`, svg: INSTAGRAM_SVG, label: '@' + siteSettings.instagram_username_1 });
+  if (siteSettings.instagram_username_2) links.push({ url: `https://www.instagram.com/${siteSettings.instagram_username_2}/`, svg: INSTAGRAM_SVG, label: '@' + siteSettings.instagram_username_2 });
+  if (siteSettings.tiktok_username) links.push({ url: `https://www.tiktok.com/@${siteSettings.tiktok_username}`, svg: TIKTOK_SVG, label: '@' + siteSettings.tiktok_username });
 
-  el.innerHTML = links.map(l => `<a href="${l.url}" target="_blank" rel="noopener">${l.svg}</a>`).join('');
+  el.innerHTML = links.map(l => `<a href="${l.url}" target="_blank" rel="noopener">${l.svg}<span>${l.label}</span></a>`).join('');
 }
 
 // ── INIT ──
