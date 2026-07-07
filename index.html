@@ -79,12 +79,9 @@
   .hero-carousel { position: relative; overflow: hidden; width: 100%; touch-action: pan-y; }
   .hero-carousel-track { display: flex; transition: transform 0.4s ease; }
   .hero-carousel-slide { flex: 0 0 100%; min-width: 0; }
-  .hero-carousel-slide picture, .hero-carousel-slide img { display: block; width: 100%; }
-  .hero-carousel-slide img { aspect-ratio: 2/1; object-fit: cover; background: var(--stone); }
+  .hero-carousel-slide img { display: block; width: 100%; aspect-ratio: 2/1; object-fit: cover; background: var(--stone); }
   @media (min-width: 768px) {
-    .hero-carousel-slide { display: flex; justify-content: center; background: var(--stone); }
-    .hero-carousel-slide picture { display: flex; justify-content: center; width: 100%; }
-    .hero-carousel-slide img { width: auto; max-width: 100%; height: auto; max-height: 400px; aspect-ratio: 16/9; object-fit: contain; }
+    .hero-carousel-slide img { max-height: 550px; }
   }
   .hero-carousel-dots { position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; }
   .hero-carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(255,255,255,0.55); cursor: pointer; border: none; padding: 0; transition: background 0.2s; }
@@ -727,24 +724,14 @@
       <div class="admin-form-card">
         <h3>Banner Homepage (bisa lebih dari satu, otomatis slide)</h3>
         <div class="form-group">
-          <label class="form-label">Gambar Desktop (rasio 16:9, otomatis dikonversi ke WebP & dikompres)</label>
-          <div class="photo-upload-zone" id="bannerDesktopZone" onclick="document.getElementById('bannerDesktopInput').click()">
+          <label class="form-label">Gambar Banner (rasio 2:1, otomatis dikonversi ke WebP & dikompres)</label>
+          <div class="photo-upload-zone" id="bannerZone" onclick="document.getElementById('bannerInput').click()">
             <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p>Klik untuk pilih gambar desktop</p>
-            <span>JPG, PNG, WEBP — rasio 16:9 disarankan</span>
-          </div>
-          <input type="file" id="bannerDesktopInput" accept="image/*" style="display:none" onchange="handleBannerFileSelect(event, 'desktop')">
-          <div id="bannerDesktopPreview"></div>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Gambar Mobile (rasio 2:1, otomatis dikonversi ke WebP & dikompres)</label>
-          <div class="photo-upload-zone" id="bannerMobileZone" onclick="document.getElementById('bannerMobileInput').click()">
-            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-            <p>Klik untuk pilih gambar mobile</p>
+            <p>Klik untuk pilih gambar banner</p>
             <span>JPG, PNG, WEBP — rasio 2:1 disarankan</span>
           </div>
-          <input type="file" id="bannerMobileInput" accept="image/*" style="display:none" onchange="handleBannerFileSelect(event, 'mobile')">
-          <div id="bannerMobilePreview"></div>
+          <input type="file" id="bannerInput" accept="image/*" style="display:none" onchange="handleBannerFileSelect(event)">
+          <div id="bannerPreview"></div>
         </div>
         <br>
         <button class="btn-primary" id="bannerAddBtn" onclick="addBanner()">Tambah Banner</button>
@@ -1784,51 +1771,32 @@ async function saveSiteSettings() {
   loadSiteSettings();
 }
 
-// ── ADMIN: BANNER MANAGER (multi-slide, desktop 16:9 + mobile 2:1) ──
-let pendingBannerDesktop = null; // {file, url}
-let pendingBannerMobile = null;  // {file, url}
+// ── ADMIN: BANNER MANAGER (multi-slide, satu gambar 2:1 per banner) ──
+let pendingBannerFile = null; // {file, url}
 
-function handleBannerFileSelect(event, type) {
+function handleBannerFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const url = URL.createObjectURL(file);
-  if (type === 'desktop') {
-    pendingBannerDesktop = { file, url };
-    document.getElementById('bannerDesktopPreview').innerHTML = `<img src="${url}" style="width:100%;max-width:400px;aspect-ratio:16/9;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
-  } else {
-    pendingBannerMobile = { file, url };
-    document.getElementById('bannerMobilePreview').innerHTML = `<img src="${url}" style="width:100%;max-width:300px;aspect-ratio:2/1;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
-  }
+  pendingBannerFile = { file, url: URL.createObjectURL(file) };
+  document.getElementById('bannerPreview').innerHTML = `<img src="${pendingBannerFile.url}" style="width:100%;max-width:400px;aspect-ratio:2/1;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
   event.target.value = '';
 }
 
 async function addBanner() {
-  if (!pendingBannerDesktop && !pendingBannerMobile) { showToast('Upload minimal satu gambar (desktop atau mobile)'); return; }
+  if (!pendingBannerFile) { showToast('Upload gambar banner dulu'); return; }
 
   const btn = document.getElementById('bannerAddBtn');
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
 
-  let desktop_image_url = null, mobile_image_url = null;
-
-  if (pendingBannerDesktop) {
-    const blob = await convertToWebp(pendingBannerDesktop.file, 0.82);
-    const fileName = `_site/banner-desktop-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-    const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
-    if (upErr) { showToast('Gagal upload gambar desktop'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
-    desktop_image_url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
-  }
-
-  if (pendingBannerMobile) {
-    const blob = await convertToWebp(pendingBannerMobile.file, 0.82);
-    const fileName = `_site/banner-mobile-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-    const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
-    if (upErr) { showToast('Gagal upload gambar mobile'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
-    mobile_image_url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
-  }
+  const blob = await convertToWebp(pendingBannerFile.file, 0.82);
+  const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
+  const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+  if (upErr) { showToast('Gagal upload banner'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
+  const url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
 
   const nextOrder = banners.length > 0 ? Math.max(...banners.map(b => b.sort_order)) + 1 : 0;
-  const { error } = await sb.from('banners').insert({ desktop_image_url, mobile_image_url, sort_order: nextOrder });
+  const { error } = await sb.from('banners').insert({ desktop_image_url: url, mobile_image_url: url, sort_order: nextOrder });
 
   btn.disabled = false;
   btn.textContent = 'Tambah Banner';
@@ -1836,10 +1804,8 @@ async function addBanner() {
   if (error) { showToast('Gagal menambah banner'); console.error(error); return; }
 
   showToast('Banner ditambahkan ✓');
-  pendingBannerDesktop = null;
-  pendingBannerMobile = null;
-  document.getElementById('bannerDesktopPreview').innerHTML = '';
-  document.getElementById('bannerMobilePreview').innerHTML = '';
+  pendingBannerFile = null;
+  document.getElementById('bannerPreview').innerHTML = '';
   loadAdminBanners();
   loadBanners();
 }
@@ -1858,8 +1824,7 @@ function renderAdminBannersTable(list) {
   tbody.innerHTML = list.map((b, i) => `
     <tr>
       <td>
-        ${b.desktop_image_url ? `<img src="${b.desktop_image_url}" style="width:80px;height:45px;object-fit:cover;display:inline-block;margin-right:4px;border:1px solid var(--stone)" title="Desktop">` : ''}
-        ${b.mobile_image_url ? `<img src="${b.mobile_image_url}" style="width:40px;height:20px;object-fit:cover;display:inline-block;border:1px solid var(--stone)" title="Mobile">` : ''}
+        ${b.mobile_image_url || b.desktop_image_url ? `<img src="${b.mobile_image_url || b.desktop_image_url}" style="width:80px;height:40px;object-fit:cover;display:inline-block;border:1px solid var(--stone)">` : ''}
       </td>
       <td>
         <button class="btn-small btn-warning" onclick="moveBanner('${b.id}', -1)" style="margin-right:4px" ${i === 0 ? 'disabled' : ''}>↑</button>
@@ -2142,10 +2107,7 @@ function renderHeroCarousel() {
 
   track.innerHTML = banners.map(b => `
     <div class="hero-carousel-slide">
-      <picture>
-        ${b.desktop_image_url ? `<source media="(min-width: 768px)" srcset="${b.desktop_image_url}">` : ''}
-        <img src="${b.mobile_image_url || b.desktop_image_url}" alt="Dwie Foss">
-      </picture>
+      <img src="${b.mobile_image_url || b.desktop_image_url}" alt="Dwie Foss">
     </div>
   `).join('');
 
