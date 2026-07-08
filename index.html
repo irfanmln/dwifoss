@@ -15,6 +15,9 @@
     --espresso: #2C1F14;
     --caramel: #C4955A;
     --white: #FFFFFF;
+    --mint: #A8CCC0;
+    --mint-deep: #4F7768;
+    --mint-tint: #EDF5F2;
     --serif: 'Cormorant Garamond', serif;
     --sans: 'DM Sans', sans-serif;
   }
@@ -302,6 +305,15 @@
   .page-btn { width: 36px; height: 36px; display: flex; align-items: center; justify-content: center; font-size: 13px; border: 1px solid var(--stone); background: var(--white); color: var(--espresso); cursor: pointer; font-family: var(--sans); transition: all 0.2s; }
   .page-btn.active { background: var(--espresso); color: var(--ivory); border-color: var(--espresso); }
   .page-btn:hover:not(.active) { border-color: var(--espresso); }
+
+  /* STORE VISIT BANNER */
+  .store-banner { display: flex; align-items: center; gap: 20px; padding: 24px; margin: 0 0 40px; background: var(--mint-tint); flex-wrap: wrap; }
+  .store-banner-icon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--mint); display: flex; align-items: center; justify-content: center; }
+  .store-banner-copy { flex: 1; min-width: 200px; }
+  .store-banner-copy h3 { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--espresso); margin-bottom: 4px; }
+  .store-banner-copy p { font-size: 12.5px; color: var(--espresso); opacity: 0.75; }
+  .store-banner-cta { flex-shrink: 0; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; color: var(--mint-deep); border: 1px solid var(--mint-deep); padding: 10px 16px; background: none; cursor: pointer; font-family: var(--sans); white-space: nowrap; transition: background 0.2s, color 0.2s; }
+  .store-banner-cta:hover { background: var(--mint-deep); color: var(--white); }
   .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .page-btn.arrow { font-size: 16px; }
 
@@ -409,6 +421,17 @@
     </div>
     <div class="product-grid" id="productGrid"></div>
     <div class="pagination" id="pagination"></div>
+
+    <div class="store-banner">
+      <div class="store-banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="#4F7768" stroke-width="1.6" width="20" height="20"><path d="M3 9l1.5-5h15L21 9M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 20v-6h6v6"/></svg>
+      </div>
+      <div class="store-banner-copy">
+        <h3>Mampir ke toko offline kami</h3>
+        <p>Jl. Patriot Dalam I no.27, Tarogong Kidul, Garut — Senin–Sabtu, 09.00–17.00 WIB</p>
+      </div>
+      <a class="store-banner-cta" href="https://www.google.com/maps/search/?api=1&query=Jl.+Patriot+Dalam+I+no.27,+Tarogong+Kidul,+Garut" target="_blank" rel="noopener">Lihat Lokasi</a>
+    </div>
   </div>
 </div>
 
