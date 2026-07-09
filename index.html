@@ -882,8 +882,8 @@
     <div class="footer-grid">
       <div class="footer-col">
         <h4>Contact Us</h4>
-        <p>WhatsApp: 0812-0000-0000</p>
-        <p>Email: hello@dwifoss.com</p>
+        <p>WhatsApp: 0857-2423-4874</p>
+        <p>Email: hallo.dwiebags@gmail.com</p>
       </div>
       <div class="footer-col">
         <h4>Shop By</h4>
@@ -907,7 +907,7 @@
 </footer>
 
 <!-- FLOATING WHATSAPP -->
-<a class="wa-float" href="https://wa.me/6281200000000" target="_blank" rel="noopener" aria-label="Chat WhatsApp">
+<a class="wa-float" href="https://wa.me/6285724234874" target="_blank" rel="noopener" aria-label="Chat WhatsApp">
   <svg width="28" height="28" viewBox="0 0 24 24" fill="white">
     <path d="M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.74.46 3.43 1.32 4.92L2.05 22l5.3-1.39a9.9 9.9 0 004.69 1.19h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.13-2.9-7C17.18 3.03 14.69 2 12.04 2zm5.87 14.07c-.25.7-1.45 1.34-2 1.43-.51.08-1.15.12-1.86-.12-.43-.14-.98-.33-1.69-.64-2.97-1.28-4.91-4.27-5.06-4.47-.15-.2-1.21-1.61-1.21-3.07 0-1.46.77-2.18 1.04-2.48.27-.3.6-.37.8-.37.2 0 .4 0 .57.01.18.01.43-.07.67.51.25.6.85 2.07.92 2.22.07.15.12.33.02.53-.1.2-.15.33-.3.51-.15.18-.32.4-.45.54-.15.15-.31.32-.13.62.18.3.8 1.32 1.72 2.14 1.18 1.05 2.18 1.38 2.48 1.53.3.15.48.13.65-.08.18-.2.77-.9.97-1.21.2-.3.41-.25.68-.15.28.1 1.77.83 2.07.98.3.15.5.23.58.35.07.13.07.73-.18 1.43z"/>
   </svg>
@@ -1377,7 +1377,7 @@ async function placeOrder() {
   // Tombol konfirmasi WhatsApp
   const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
   const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\nNo. Pesanan: ${orderNo}\nNama: ${name}\nNo. HP: ${phone}\n\nProduk:\n${waItemsText}\n\nTotal: ${formatRp(subtotal)}\n\nAlamat Pengiriman:\n${address}, ${city}, ${province}${zip ? ' ' + zip : ''}`;
-  document.getElementById('successWaBtn').href = `https://wa.me/6281200000000?text=${encodeURIComponent(waMessage)}`;
+  document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
   const orderCart = [...cart];
   cart = [];
