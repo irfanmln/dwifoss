@@ -1274,18 +1274,19 @@ let selectedVariant = null;
 
 function renderVariantSwatches(variants) {
   currentVariants = variants;
+  selectedVariant = null;
   const section = document.getElementById('variantSection');
+  // Harga awal & foto utama selalu dari data produk (katalog) — foto/harga varian
+  // baru menggantikannya setelah pembeli benar-benar klik salah satu warna.
+  document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
+  setDetailButtonsState(true);
   if (!variants || variants.length === 0) {
     section.style.display = 'none';
-    selectedVariant = null;
-    document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
-    setDetailButtonsState(true);
     return;
   }
   section.style.display = 'block';
-  selectedVariant = variants.find(v => v.is_available) || variants[0];
+  document.getElementById('variantSelectedName').textContent = 'Pilih warna';
   renderSwatchButtons();
-  applySelectedVariant();
 }
 
 function renderSwatchButtons() {
@@ -1304,17 +1305,13 @@ function selectVariant(variantId) {
   if (!v) return;
   selectedVariant = v;
   renderSwatchButtons();
-  applySelectedVariant();
-}
-
-function applySelectedVariant() {
-  document.getElementById('variantSelectedName').textContent = selectedVariant.color_name;
-  document.getElementById('detailPrice').innerHTML = priceHtml(selectedVariant.price, selectedVariant.original_price);
-  if (selectedVariant.image_url) {
-    document.getElementById('galleryMain').src = selectedVariant.image_url;
+  document.getElementById('variantSelectedName').textContent = v.color_name;
+  document.getElementById('detailPrice').innerHTML = priceHtml(v.price, v.original_price);
+  if (v.image_url) {
+    document.getElementById('galleryMain').src = v.image_url;
     document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
   }
-  setDetailButtonsState(selectedVariant.is_available);
+  setDetailButtonsState(v.is_available);
 }
 
 function setDetailButtonsState(available) {
@@ -1384,12 +1381,14 @@ function addToCart(product, variant = null) {
 }
 
 function addToCartFromDetail() {
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Pilih warna dulu'); return; }
   if (selectedVariant && !selectedVariant.is_available) { showToast('Warna ini sedang habis'); return; }
   addToCart(currentProduct, selectedVariant);
   showToast('Ditambahkan ke keranjang ✓');
 }
 
 function buyNow() {
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Pilih warna dulu'); return; }
   if (selectedVariant && !selectedVariant.is_available) { showToast('Warna ini sedang habis'); return; }
   addToCart(currentProduct, selectedVariant);
   showPage('checkout');
