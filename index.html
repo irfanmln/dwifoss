@@ -1271,6 +1271,7 @@ async function openDetail(id) {
 // ── VARIANT SWATCHES (detail page) ──
 let currentVariants = [];
 let selectedVariant = null;
+let currentGalleryImages = [];
 
 function renderVariantSwatches(variants) {
   currentVariants = variants;
@@ -1301,6 +1302,11 @@ function renderSwatchButtons() {
 }
 
 function selectVariant(variantId) {
+  // Klik warna yang sudah aktif = batalkan pilihan, balik ke foto & harga katalog
+  if (selectedVariant && selectedVariant.id === variantId) {
+    clearVariantSelection();
+    return;
+  }
   const v = currentVariants.find(x => x.id === variantId);
   if (!v) return;
   selectedVariant = v;
@@ -1314,6 +1320,15 @@ function selectVariant(variantId) {
   setDetailButtonsState(v.is_available);
 }
 
+function clearVariantSelection() {
+  selectedVariant = null;
+  renderSwatchButtons();
+  document.getElementById('variantSelectedName').textContent = 'Pilih warna';
+  document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
+  document.getElementById('galleryMain').src = currentGalleryImages[0] || '';
+  setDetailButtonsState(true);
+}
+
 function setDetailButtonsState(available) {
   const addBtn = document.getElementById('detailAddToCartBtn');
   const buyBtn = document.getElementById('detailBuyNowBtn');
@@ -1324,6 +1339,7 @@ function setDetailButtonsState(available) {
 }
 
 function renderGallery(images, altText) {
+  currentGalleryImages = images;
   const mainEl = document.getElementById('galleryMain');
   const thumbsEl = document.getElementById('galleryThumbs');
 
