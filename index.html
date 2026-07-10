@@ -330,13 +330,24 @@
   .page-btn:hover:not(.active) { border-color: var(--espresso); }
 
   /* STORE VISIT BANNER */
-  .store-banner { display: flex; align-items: center; gap: 20px; padding: 24px; margin: 0 0 40px; background: var(--mint-tint); border: 1px solid var(--mint); border-radius: 16px; flex-wrap: wrap; }
+  .store-banner { padding: 28px; margin: 0 0 40px; background: var(--mint-tint); border: 1px solid var(--mint); border-radius: 16px; }
   .store-banner-icon { flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; background: var(--mint); display: flex; align-items: center; justify-content: center; }
-  .store-banner-copy { flex: 1; min-width: 200px; }
   .store-banner-copy h3 { font-family: var(--serif); font-size: 19px; font-weight: 600; color: var(--espresso); margin-bottom: 6px; }
   .store-banner-copy p { font-size: 12.5px; color: var(--espresso); opacity: 0.75; white-space: pre-line; line-height: 1.6; }
-  .store-banner-cta { flex-shrink: 0; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; color: var(--mint-deep); border: 1px solid var(--mint-deep); border-radius: 8px; padding: 10px 16px; background: none; cursor: pointer; font-family: var(--sans); white-space: nowrap; transition: background 0.2s, color 0.2s; }
+  .store-banner-cta { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: 1.5px; text-transform: uppercase; font-weight: 600; color: var(--mint-deep); border: 1px solid var(--mint-deep); border-radius: 8px; padding: 10px 20px; background: none; cursor: pointer; font-family: var(--sans); white-space: nowrap; transition: background 0.2s, color 0.2s; }
   .store-banner-cta:hover { background: var(--mint-deep); color: var(--white); }
+
+  .store-banner-mobile { display: flex; align-items: center; gap: 20px; flex-wrap: wrap; }
+  .store-banner-mobile .store-banner-copy { min-width: 200px; }
+  .store-banner-desktop { display: none; }
+
+  @media (min-width: 900px) {
+    .store-banner-mobile { display: none; }
+    .store-banner-desktop { display: flex; align-items: flex-start; gap: 24px; }
+    .store-banner-group { display: flex; align-items: center; gap: 14px; flex: 1; }
+    .store-banner-divider { align-self: stretch; width: 1px; background: var(--mint); }
+    .store-banner-cta { align-self: center; }
+  }
   .page-btn:disabled { opacity: 0.3; cursor: not-allowed; }
   .page-btn.arrow { font-size: 16px; }
 
@@ -446,14 +457,45 @@
     <div class="pagination" id="pagination"></div>
 
     <div class="store-banner" id="storeBanner" style="display:none">
-      <div class="store-banner-icon">
-        <svg viewBox="0 0 24 24" fill="none" stroke="#4F7768" stroke-width="1.6" width="20" height="20"><path d="M3 9l1.5-5h15L21 9M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 20v-6h6v6"/></svg>
+      <!-- Versi mobile: satu blok -->
+      <div class="store-banner-mobile">
+        <div class="store-banner-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#4F7768" stroke-width="1.6" width="20" height="20"><path d="M3 9l1.5-5h15L21 9M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 20v-6h6v6"/></svg>
+        </div>
+        <div class="store-banner-copy">
+          <h3 id="storeBannerTitle"></h3>
+          <p id="storeBannerText"></p>
+        </div>
+        <a class="store-banner-cta" id="storeBannerCta" href="#" target="_blank" rel="noopener"><span id="storeBannerCtaLabel">View Map</span></a>
       </div>
-      <div class="store-banner-copy">
-        <h3 id="storeBannerTitle"></h3>
-        <p id="storeBannerText"></p>
+
+      <!-- Versi desktop: dua kolom + garis pembatas -->
+      <div class="store-banner-desktop">
+        <div class="store-banner-group">
+          <div class="store-banner-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4F7768" stroke-width="1.6" width="20" height="20"><path d="M3 9l1.5-5h15L21 9M3 9v10a1 1 0 001 1h16a1 1 0 001-1V9M3 9h18M9 20v-6h6v6"/></svg>
+          </div>
+          <div class="store-banner-copy">
+            <h3 id="storeBannerTitleDesktop"></h3>
+            <p id="storeBannerAddressDesktop"></p>
+          </div>
+        </div>
+        <div class="store-banner-divider"></div>
+        <div class="store-banner-group" id="storeBannerHoursGroup">
+          <div class="store-banner-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#4F7768" stroke-width="1.6" width="20" height="20"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+          </div>
+          <div class="store-banner-copy">
+            <h3>Operation Hours</h3>
+            <p id="storeBannerHoursDesktop"></p>
+          </div>
+        </div>
+        <div class="store-banner-divider" id="storeBannerHoursDivider"></div>
+        <a class="store-banner-cta" id="storeBannerCtaDesktop" href="#" target="_blank" rel="noopener">
+          <span id="storeBannerCtaLabelDesktop">View Map</span>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12"><path d="M7 17L17 7M7 7h10v10"/></svg>
+        </a>
       </div>
-      <a class="store-banner-cta" id="storeBannerCta" href="#" target="_blank" rel="noopener">View Map</a>
     </div>
   </div>
 </div>
@@ -841,12 +883,20 @@
           <input class="form-input" id="settingBannerTitle" placeholder="Mampir ke toko offline kami">
         </div>
         <div class="form-group">
-          <label class="form-label">Alamat & Jam Operasional</label>
-          <textarea class="form-input" id="settingBannerText" rows="5" placeholder="Jl. Contoh No.1, Kota&#10;Kecamatan - Kota&#10;&#10;Operational Hours:&#10;Senin-Sabtu, 09.00-17.00 WIB"></textarea>
+          <label class="form-label">Alamat</label>
+          <textarea class="form-input" id="settingBannerText" rows="2" placeholder="Jl. Contoh No.1, Kota&#10;Kecamatan - Kota"></textarea>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Jam Operasional</label>
+          <input class="form-input" id="settingBannerHours" placeholder="Senin-Sabtu, 09.00-17.00 WIB">
         </div>
         <div class="form-group">
           <label class="form-label">Link Google Maps</label>
           <input class="form-input" id="settingBannerMapsUrl" placeholder="https://www.google.com/maps/search/?api=1&query=...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Teks Tombol</label>
+          <input class="form-input" id="settingBannerCtaLabel" placeholder="View Map">
         </div>
         <br>
         <button class="btn-primary" id="storeBannerSubmitBtn" onclick="saveSiteSettings()">Simpan Pengaturan</button>
@@ -1215,7 +1265,8 @@ function renderProducts() {
 
 function renderPagination(totalPages) {
   const el = document.getElementById('pagination');
-  if (totalPages <= 1) { el.innerHTML = ''; return; }
+  if (totalPages <= 1) { el.innerHTML = ''; el.style.padding = '0'; return; }
+  el.style.padding = '';
 
   let html = `<button class="page-btn arrow" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
 
@@ -1994,12 +2045,14 @@ async function saveSiteSettings() {
   const store_banner_enabled = document.getElementById('settingBannerEnabled').checked;
   const store_banner_title = document.getElementById('settingBannerTitle').value.trim() || null;
   const store_banner_text = document.getElementById('settingBannerText').value.trim() || null;
+  const store_banner_hours = document.getElementById('settingBannerHours').value.trim() || null;
   const store_banner_maps_url = document.getElementById('settingBannerMapsUrl').value.trim() || null;
+  const store_banner_cta_label = document.getElementById('settingBannerCtaLabel').value.trim() || null;
 
   const { error } = await sb.from('site_settings')
     .update({
       instagram_username_1, instagram_username_2, tiktok_username,
-      store_banner_enabled, store_banner_title, store_banner_text, store_banner_maps_url,
+      store_banner_enabled, store_banner_title, store_banner_text, store_banner_hours, store_banner_maps_url, store_banner_cta_label,
       updated_at: new Date().toISOString()
     })
     .eq('id', 1);
@@ -2396,9 +2449,11 @@ async function loadSiteSettings() {
     document.getElementById('settingIg2').value = siteSettings.instagram_username_2 || '';
     document.getElementById('settingTiktok').value = siteSettings.tiktok_username || '';
     document.getElementById('settingBannerEnabled').checked = siteSettings.store_banner_enabled !== false;
-    document.getElementById('settingBannerTitle').value = siteSettings.store_banner_title || '';
-    document.getElementById('settingBannerText').value = siteSettings.store_banner_text || '';
+    document.getElementById('settingBannerTitle').value = (siteSettings.store_banner_title || '').trim();
+    document.getElementById('settingBannerText').value = (siteSettings.store_banner_text || '').trim();
+    document.getElementById('settingBannerHours').value = (siteSettings.store_banner_hours || '').trim();
     document.getElementById('settingBannerMapsUrl').value = siteSettings.store_banner_maps_url || '';
+    document.getElementById('settingBannerCtaLabel').value = (siteSettings.store_banner_cta_label || '').trim();
   }
 }
 
@@ -2407,9 +2462,28 @@ function renderStoreBanner() {
   if (!el) return;
   if (siteSettings.store_banner_enabled === false) { el.style.display = 'none'; return; }
   el.style.display = '';
-  document.getElementById('storeBannerTitle').textContent = siteSettings.store_banner_title || 'Mampir ke toko offline kami';
-  document.getElementById('storeBannerText').textContent = siteSettings.store_banner_text || '';
-  document.getElementById('storeBannerCta').href = siteSettings.store_banner_maps_url || '#';
+  const title = (siteSettings.store_banner_title || 'Mampir ke toko offline kami').trim();
+  const address = (siteSettings.store_banner_text || '').trim();
+  const hours = (siteSettings.store_banner_hours || '').trim();
+  const mapsUrl = siteSettings.store_banner_maps_url || '#';
+  const ctaLabel = (siteSettings.store_banner_cta_label || '').trim() || 'View Map';
+
+  // Versi mobile — satu blok, alamat + jam operasional digabung untuk ditampilkan
+  document.getElementById('storeBannerTitle').textContent = title;
+  document.getElementById('storeBannerText').textContent = address + (hours ? `\n\nOperational Hours:\n${hours}` : '');
+  document.getElementById('storeBannerCta').href = mapsUrl;
+  document.getElementById('storeBannerCtaLabel').textContent = ctaLabel;
+
+  // Versi desktop — alamat & jam operasional dari field terpisah, tidak perlu parsing teks
+  document.getElementById('storeBannerTitleDesktop').textContent = title;
+  document.getElementById('storeBannerAddressDesktop').textContent = address;
+  document.getElementById('storeBannerHoursDesktop').textContent = hours;
+  document.getElementById('storeBannerCtaDesktop').href = mapsUrl;
+  document.getElementById('storeBannerCtaLabelDesktop').textContent = ctaLabel;
+
+  const hasHours = !!hours;
+  document.getElementById('storeBannerHoursGroup').style.display = hasHours ? '' : 'none';
+  document.getElementById('storeBannerHoursDivider').style.display = hasHours ? '' : 'none';
 }
 
 const INSTAGRAM_SVG = `<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.6" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.5" cy="6.5" r="1"/></svg>`;
