@@ -10,6 +10,7 @@
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
     --ivory: #F7F4EF;
+    --page-bg: #F0E8DC;
     --stone: #E8E3DA;
     --warm-gray: #9C9189;
     --espresso: #2C1F14;
@@ -22,12 +23,12 @@
     --sans: 'DM Sans', sans-serif;
   }
   html { scroll-behavior: smooth; }
-  body { font-family: var(--sans); background: var(--ivory); color: var(--espresso); min-height: 100vh; }
+  body { font-family: var(--sans); background: var(--page-bg); color: var(--espresso); min-height: 100vh; }
 
   /* NAV */
   nav {
     position: sticky; top: 0; z-index: 200;
-    background: var(--ivory);
+    background: var(--page-bg);
     border-bottom: 1px solid var(--stone);
     transition: box-shadow 0.3s;
   }
@@ -69,7 +70,7 @@
   .burger-btn { background: none; border: none; cursor: pointer; padding: 8px; color: var(--espresso); }
 
   /* MOBILE MENU */
-  .mobile-menu { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--ivory); z-index: 300; flex-direction: column; }
+  .mobile-menu { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--page-bg); z-index: 300; flex-direction: column; }
   .mobile-menu.open { display: flex; }
   .mobile-menu-header { display: flex; align-items: center; justify-content: space-between; padding: 0 24px; height: 60px; border-bottom: 1px solid var(--stone); }
   .mobile-menu-header img.mobile-logo-img { height: 38px; width: auto; display: block; }
@@ -385,7 +386,7 @@
   .form-textarea:focus { border-color: var(--caramel); }
 
   /* ORDER DETAIL */
-  .order-detail-box { background: var(--ivory); border: 1px solid var(--stone); padding: 14px; margin-top: 8px; font-size: 12px; line-height: 1.8; color: var(--warm-gray); display: none; }
+  .order-detail-box { background: var(--page-bg); border: 1px solid var(--stone); padding: 14px; margin-top: 8px; font-size: 12px; line-height: 1.8; color: var(--warm-gray); display: none; }
   .order-detail-box.open { display: block; }
   .order-detail-box strong { color: var(--espresso); }
   .order-items-list { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--stone); }
@@ -2006,6 +2007,11 @@ function renderAdminProductsTable() {
 }
 
 // ── CONVERT TO WEBP ──
+// Kompres & resize gambar sebelum upload. Mengembalikan {blob, ext} — ext mengikuti
+// format blob yang BENAR-BENAR dihasilkan browser, bukan diasumsikan selalu webp.
+// Beberapa browser (Safari lama, in-app browser WA/IG, dll) tidak bisa encode webp lewat
+// canvas.toBlob dan diam-diam mengembalikan PNG mentah tanpa kompresi — di sini kita deteksi
+// itu dan fallback ke JPEG (didukung hampir semua browser) supaya tetap terkompresi.
 function convertToWebp(file, quality = 0.82) {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -2025,8 +2031,16 @@ function convertToWebp(file, quality = 0.82) {
       canvas.getContext('2d').drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(url);
       canvas.toBlob(blob => {
-        if (blob) resolve(blob);
-        else reject(new Error('Konversi webp gagal'));
+        if (!blob) { reject(new Error('Konversi gambar gagal')); return; }
+        if (blob.type === 'image/webp') {
+          resolve({ blob, ext: 'webp' });
+          return;
+        }
+        // Browser tidak mendukung encode webp — fallback ke JPEG terkompresi
+        canvas.toBlob(jpegBlob => {
+          if (jpegBlob) resolve({ blob: jpegBlob, ext: 'jpg' });
+          else reject(new Error('Konversi gambar gagal'));
+        }, 'image/jpeg', quality);
       }, 'image/webp', quality);
     };
     img.onerror = () => reject(new Error('Gagal membaca gambar'));
@@ -2083,9 +2097,9 @@ async function addBanner() {
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
 
-  const blob = await convertToWebp(pendingBannerFile.file, 0.82);
-  const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-  const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+  const { blob, ext } = await convertToWebp(pendingBannerFile.file, 0.82);
+  const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
   if (upErr) { showToast('Gagal upload banner'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
   const url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
 
@@ -2201,16 +2215,16 @@ async function addProduct() {
     btn.textContent = 'Mengupload foto...';
     let order = 0;
     for (const item of pendingPhotos) {
-      let blob;
+      let blob, ext;
       if (item.file) {
-        blob = await convertToWebp(item.file, 0.82);
+        ({ blob, ext } = await convertToWebp(item.file, 0.82));
       } else {
         // Foto lama (dari edit, tidak diubah) — skip re-upload, insert ulang dengan order baru
         await sb.from('product_images').insert({ product_id: productId, image_url: item.url, sort_order: order++ });
         continue;
       }
-      const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-      const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+      const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
       if (upErr) { console.error(upErr); continue; }
       const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
       await sb.from('product_images').insert({ product_id: productId, image_url: urlData.publicUrl, sort_order: order++ });
@@ -2228,9 +2242,9 @@ async function addProduct() {
     for (const v of validVariants) {
       let variantImageUrl = v.url || null;
       if (v.file) {
-        const blob = await convertToWebp(v.file, 0.82);
-        const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.webp`;
-        const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: 'image/webp' });
+        const { blob, ext } = await convertToWebp(v.file, 0.82);
+        const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+        const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
         if (!upErr) {
           const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
           variantImageUrl = urlData.publicUrl;
