@@ -382,7 +382,11 @@
   .empty-state { text-align: center; padding: 48px 24px; color: var(--warm-gray); font-size: 13px; }
 
   /* TEXTAREA */
-  .form-textarea { width: 100%; padding: 13px 14px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; resize: vertical; min-height: 100px; line-height: 1.6; }
+  .form-textarea { width: 100%; padding: 13px 14px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; resize: vertical; min-height: 180px; line-height: 1.6; }
+  .desc-toolbar { display: flex; gap: 4px; border: 1px solid var(--stone); border-bottom: none; background: var(--ivory); padding: 6px; }
+  .desc-toolbar button { width: 30px; height: 30px; border: 1px solid var(--stone); background: var(--white); color: var(--espresso); font-family: var(--sans); font-size: 13px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .desc-toolbar button:hover { background: var(--stone); }
+  .desc-textarea { border-top: none; }
   .form-textarea:focus { border-color: var(--caramel); }
 
   /* ORDER DETAIL */
@@ -762,7 +766,13 @@
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
-          <textarea class="form-textarea" id="pDesc" placeholder="Deskripsi produk..."></textarea>
+          <div class="desc-toolbar">
+            <button type="button" onclick="wrapDescSelection('**')"><strong>B</strong></button>
+            <button type="button" onclick="wrapDescSelection('*')"><em>I</em></button>
+            <button type="button" onclick="wrapDescSelection('__')"><u>U</u></button>
+          </div>
+          <textarea class="form-textarea desc-textarea" id="pDesc" placeholder="Deskripsi produk..." rows="8"></textarea>
+          <span style="font-size:11px;color:var(--warm-gray)">Pilih teksnya lalu klik B / I / U untuk memformat.</span>
         </div>
         <div class="form-group">
           <label class="form-label">Badge (opsional)</label>
@@ -1290,6 +1300,26 @@ function goPage(page) {
 }
 
 // ── DETAIL ──
+function formatDescription(text) {
+  return (text || '')
+    .replace(/\n/g, '<br>')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g, '<em>$1</em>')
+    .replace(/__(.+?)__/g, '<u>$1</u>');
+}
+
+// Toolbar B/I/U di form deskripsi admin — bungkus teks yang dipilih dengan tanda markup
+function wrapDescSelection(marker) {
+  const el = document.getElementById('pDesc');
+  const start = el.selectionStart;
+  const end = el.selectionEnd;
+  const selected = el.value.slice(start, end) || 'teks';
+  el.value = el.value.slice(0, start) + marker + selected + marker + el.value.slice(end);
+  el.focus();
+  el.selectionStart = start + marker.length;
+  el.selectionEnd = start + marker.length + selected.length;
+}
+
 function priceHtml(price, originalPrice) {
   const hasDiscount = originalPrice && originalPrice > price;
   const discountPct = hasDiscount ? Math.round((1 - price / originalPrice) * 100) : 0;
@@ -1303,7 +1333,7 @@ async function openDetail(id) {
 
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
-  document.getElementById('detailDesc').innerHTML = (currentProduct.description || '').replace(/\n/g, '<br>');
+  document.getElementById('detailDesc').innerHTML = formatDescription(currentProduct.description);
   const catEl = document.getElementById('detailCategory');
   if (catEl) {
     const cat = currentProduct.category_id ? allCategories.find(c => c.id === currentProduct.category_id) : null;
