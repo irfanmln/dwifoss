@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DWIE FOSS — Tas & Aksesori Branded</title>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -148,6 +148,7 @@
   .detail-price-original { font-size: 15px; color: var(--warm-gray); text-decoration: line-through; font-weight: 400; }
   .detail-discount-badge { font-size: 11px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 3px 8px; }
   .detail-desc { font-size: 13px; line-height: 1.8; color: var(--warm-gray); margin-bottom: 32px; font-weight: 300; }
+  .detail-desc strong { font-weight: 700; color: var(--espresso); }
 
   /* GALLERY */
   .gallery-wrap { display: flex; gap: 10px; width: 100%; }
@@ -1315,9 +1316,8 @@ function wrapDescSelection(marker) {
   const end = el.selectionEnd;
   const selected = el.value.slice(start, end) || 'teks';
   el.value = el.value.slice(0, start) + marker + selected + marker + el.value.slice(end);
+  el.setSelectionRange(start + marker.length, start + marker.length + selected.length);
   el.focus();
-  el.selectionStart = start + marker.length;
-  el.selectionEnd = start + marker.length + selected.length;
 }
 
 function priceHtml(price, originalPrice) {
