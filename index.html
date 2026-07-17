@@ -151,9 +151,9 @@
   .detail-desc strong { font-weight: 700; color: var(--espresso); }
 
   /* GALLERY */
-  .gallery-wrap { display: flex; gap: 10px; width: 100%; }
-  .gallery-thumbs { display: flex; flex-direction: column; gap: 8px; width: 72px; flex-shrink: 0; }
-  .gallery-thumb { width: 72px; height: 72px; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; opacity: 0.7; }
+  .gallery-wrap { display: flex; align-items: flex-start; gap: 10px; width: 100%; }
+  .gallery-thumbs { display: flex; flex-direction: column; gap: 8px; width: 72px; flex-shrink: 0; overflow-y: auto; }
+  .gallery-thumb { width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; opacity: 0.7; flex-shrink: 0; }
   .gallery-thumb.active { border-color: var(--espresso); opacity: 1; }
   .gallery-main-wrap { flex: 1; }
   .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
@@ -1455,7 +1455,21 @@ function renderGallery(images, altText) {
       src="${url}" alt="${altText} ${i+1}"
       onclick="selectGalleryImg(this, '${url}')">
   `).join('');
+
+  syncGalleryThumbsHeight();
 }
+
+// Samakan tinggi kolom thumbnail persis dengan tinggi foto utama (desktop saja),
+// supaya ujung bawahnya sejajar berapapun jumlah fotonya / lebar layarnya.
+function syncGalleryThumbsHeight() {
+  const thumbsEl = document.getElementById('galleryThumbs');
+  const mainEl = document.getElementById('galleryMain');
+  if (!thumbsEl || !mainEl) return;
+  if (window.innerWidth < 768) { thumbsEl.style.maxHeight = ''; return; }
+  thumbsEl.style.maxHeight = mainEl.offsetHeight + 'px';
+}
+
+window.addEventListener('resize', () => syncGalleryThumbsHeight());
 
 function selectGalleryImg(thumbEl, url) {
   document.getElementById('galleryMain').src = url;
