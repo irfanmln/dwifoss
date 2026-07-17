@@ -291,11 +291,16 @@
   .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .admin-table th { text-align: left; padding: 10px 12px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); border-bottom: 1px solid var(--stone); font-weight: 400; }
   .admin-table td { padding: 12px; border-bottom: 1px solid var(--stone); vertical-align: middle; }
+  .drag-handle { cursor: grab; color: var(--warm-gray); font-size: 16px; user-select: none; }
+  .admin-table tbody tr[draggable="true"]:active .drag-handle { cursor: grabbing; }
+  .admin-table tbody tr.dragging { opacity: 0.4; }
+  .admin-table tbody tr.drag-over { box-shadow: inset 0 2px 0 var(--espresso); }
   .admin-table tr:last-child td { border-bottom: none; }
   .status-badge { display: inline-block; padding: 3px 8px; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; border-radius: 2px; }
   .status-pending { background: #FEF3C7; color: #92400E; }
   .status-confirmed { background: #D1FAE5; color: #065F46; }
   .status-shipped { background: #DBEAFE; color: #1E40AF; }
+  .status-cancelled { background: #FEE2E2; color: #991B1B; }
 
   /* LOGIN */
   .login-wrap { max-width: 360px; margin: 80px auto; padding: 0 24px; }
@@ -421,7 +426,7 @@
   </div>
   <div class="nav-cats">
     <div class="nav-cats-inner" id="navCatsInner">
-      <button class="nav-cat-link active" onclick="navFilterCategory('all', this)">Semua</button>
+      <button class="nav-cat-link active" onclick="navFilterCategory('all', this)">All</button>
     </div>
   </div>
 </nav>
@@ -433,7 +438,7 @@
     <button class="mobile-menu-close" onclick="closeMobileMenu()">×</button>
   </div>
   <div class="mobile-menu-links" id="mobileMenuLinks">
-    <button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>
+    <button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">All Products</button>
   </div>
 </div>
 
@@ -447,7 +452,7 @@
   </div>
   <div class="container">
     <div class="search-wrap">
-      <input class="search-input" id="searchInput" type="search" placeholder="Cari produk, brand..." oninput="handleSearch()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="q">
+      <input class="search-input" id="searchInput" type="search" placeholder="Search products, brand..." oninput="handleSearch()" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" data-lpignore="true" data-form-type="other" name="q">
       <button class="search-clear" id="searchClear" onclick="clearSearch()">×</button>
       <button class="search-icon-btn">
         <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
@@ -456,7 +461,7 @@
       </button>
     </div>
     <div class="section-header">
-      <span class="section-title" id="sectionTitle">Semua Produk</span>
+      <span class="section-title" id="sectionTitle">All Products</span>
       <span class="section-count" id="productCount"></span>
     </div>
     <div class="product-grid" id="productGrid"></div>
@@ -509,7 +514,7 @@
 <!-- ════ PAGE: DETAIL ════ -->
 <div class="page" id="page-detail">
   <div class="container" style="max-width:1100px">
-    <button class="btn-back" onclick="showPage('shop')">← Kembali</button>
+    <button class="btn-back" onclick="showPage('shop')">← Back</button>
     <div class="detail-layout">
       <div class="detail-img-wrap">
         <div class="gallery-wrap" id="galleryWrap">
@@ -525,7 +530,7 @@
         <h2 class="detail-name" id="detailName"></h2>
         <p class="detail-price" id="detailPrice"></p>
         <div class="variant-section" id="variantSection" style="display:none">
-          <p class="variant-label">Warna: <span id="variantSelectedName"></span></p>
+          <p class="variant-label">Color: <span id="variantSelectedName"></span></p>
           <div class="variant-swatches" id="variantSwatches"></div>
         </div>
         <p class="detail-desc" id="detailDesc"></p>
@@ -538,53 +543,53 @@
 
 <!-- ════ PAGE: CART ════ -->
 <div class="page" id="page-cart">
-  <button class="btn-back" onclick="showPage('shop')">← Lanjut Belanja</button>
-  <div class="page-title-bar"><h2>Keranjang</h2></div>
+  <button class="btn-back" onclick="showPage('shop')">← Continue Shopping</button>
+  <div class="page-title-bar"><h2>Cart</h2></div>
   <div id="cartContent"></div>
 </div>
 
 <!-- ════ PAGE: CHECKOUT ════ -->
 <div class="page" id="page-checkout">
-  <button class="btn-back" onclick="showPage('cart')">← Keranjang</button>
+  <button class="btn-back" onclick="showPage('cart')">← Cart</button>
   <div class="page-title-bar"><h2>Checkout</h2></div>
   <div class="checkout-wrap">
     <div class="checkout-section">
-      <h3>Ringkasan Pesanan</h3>
+      <h3>Order Summary</h3>
       <div id="checkoutSummary"></div>
     </div>
     <div class="checkout-section">
-      <h3>Informasi Pembeli</h3>
+      <h3>Buyer Information</h3>
       <div class="form-group">
-        <label class="form-label">Nama Lengkap *</label>
-        <input class="form-input" id="fieldName" type="text" placeholder="Masukkan nama lengkap">
+        <label class="form-label">Full Name *</label>
+        <input class="form-input" id="fieldName" type="text" placeholder="Enter your full name">
       </div>
       <div class="form-group">
-        <label class="form-label">Nomor WhatsApp *</label>
+        <label class="form-label">WhatsApp Number *</label>
         <input class="form-input" id="fieldPhone" type="tel" placeholder="08xxxxxxxxxx">
       </div>
       <div class="form-group">
         <label class="form-label">Email</label>
-        <input class="form-input" id="fieldEmail" type="email" placeholder="email@kamu.com">
+        <input class="form-input" id="fieldEmail" type="email" placeholder="your@email.com">
       </div>
     </div>
     <div class="checkout-section">
-      <h3>Alamat Pengiriman</h3>
+      <h3>Shipping Address</h3>
       <div class="form-group">
-        <label class="form-label">Alamat Lengkap *</label>
-        <input class="form-input" id="fieldAddress" type="text" placeholder="Jl. nama jalan, no. rumah">
+        <label class="form-label">Full Address *</label>
+        <input class="form-input" id="fieldAddress" type="text" placeholder="Street name, house number">
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">Kota *</label>
+          <label class="form-label">City *</label>
           <input class="form-input" id="fieldCity" type="text" placeholder="Jakarta">
         </div>
         <div class="form-group">
-          <label class="form-label">Kode Pos</label>
+          <label class="form-label">Postal Code</label>
           <input class="form-input" id="fieldZip" type="text" placeholder="12345">
         </div>
       </div>
       <div class="form-group">
-        <label class="form-label">Provinsi *</label>
+        <label class="form-label">Province *</label>
         <input class="form-input" id="fieldProvince" type="text" placeholder="DKI Jakarta">
       </div>
     </div>
@@ -598,29 +603,29 @@
     <div class="success-header">
       <div class="success-check">✓</div>
       <div class="success-header-text">
-        <h2 id="successGreeting">Pesanan Diterima!</h2>
-        <p>Terima kasih telah berbelanja di Dwie Foss.</p>
+        <h2 id="successGreeting">Order Received!</h2>
+        <p>Thank you for shopping at Dwie Foss.</p>
       </div>
     </div>
 
     <!-- Konfirmasi via WhatsApp -->
     <div class="success-bank-highlight">
-      <p class="label">Nomor Pesanan</p>
+      <p class="label">Order Number</p>
       <p id="successOrderNo" style="font-size:18px;font-weight:500;letter-spacing:3px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
-      <p class="label">Total Pesanan</p>
+      <p class="label">Order Total</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
-        Klik tombol di bawah untuk konfirmasi pesanan via WhatsApp — kami akan kirimkan detail pembayaran & ongkos kirim langsung di sana.
+        Click the button below to confirm your order via WhatsApp — we'll send the payment details & shipping cost there.
       </div>
       <a id="successWaBtn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Confirm by WhatsApp</a>
     </div>
 
     <!-- Produk dibeli -->
     <div class="success-section">
-      <p class="success-section-title">Produk yang Dipesan</p>
+      <p class="success-section-title">Items Ordered</p>
       <div id="successItems"></div>
       <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:13px;color:var(--warm-gray)">
-        <span>Ongkos kirim</span><span>Dikonfirmasi via WA</span>
+        <span>Shipping Cost</span><span>Confirmed via WA</span>
       </div>
       <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:500;border-top:1px solid var(--stone)">
         <span>Total</span><span id="successTotal2"></span>
@@ -629,20 +634,20 @@
 
     <!-- Detail Pesanan -->
     <div class="success-section">
-      <p class="success-section-title">Detail Pesanan</p>
+      <p class="success-section-title">Order Details</p>
       <div class="success-detail-grid">
         <div class="success-detail-block">
-          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Alamat Pengiriman</p>
+          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Shipping Address</p>
           <p id="successAddress"></p>
         </div>
         <div class="success-detail-block">
-          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Informasi Kontak</p>
+          <p style="font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;color:var(--espresso)">Contact Information</p>
           <p id="successContact"></p>
         </div>
       </div>
     </div>
 
-    <button class="btn-primary" onclick="backToShop()" style="max-width:280px;display:block;">Kembali Belanja</button>
+    <button class="btn-primary" onclick="backToShop()" style="max-width:280px;display:block;">Continue Shopping</button>
   </div>
 </div>
 
@@ -792,6 +797,7 @@
         <table class="admin-table">
           <thead>
             <tr>
+              <th style="width:28px"></th>
               <th>Produk</th>
               <th>Harga</th>
               <th>Status</th>
@@ -960,7 +966,7 @@
 </div>
 
 <div class="page" id="page-faq">
-  <button class="btn-back" onclick="showPage('shop')" style="max-width:1280px;margin:0 auto;display:flex">← Kembali</button>
+  <button class="btn-back" onclick="showPage('shop')" style="max-width:1280px;margin:0 auto;display:flex">← Back</button>
   <div class="info-page-wrap">
     <h1>FAQ</h1>
 
@@ -1128,8 +1134,8 @@ function renderSkeletons() {
 // ── LOAD & RENDER PRODUCTS ──
 async function loadProducts() {
   renderSkeletons();
-  const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('created_at', { ascending: false });
-  if (error) { showToast('Gagal memuat produk'); return; }
+  const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  if (error) { showToast('Failed to load products'); return; }
 
   // Ambil cover (sort_order terendah) untuk setiap produk
   const ids = data.map(p => p.id);
@@ -1180,15 +1186,15 @@ function toggleMobileCategory(categoryId, event) {
 }
 
 function applyFilter() {
-  let title = 'Semua Produk';
+  let title = 'All Products';
   if (currentCategory === 'new-arrivals') title = 'New Arrivals';
   else if (currentCategory === 'sale') title = 'Sale';
   else if (currentCategory === 'clearance') title = 'Clearance Sale';
   else if (currentCategory !== 'all') {
     const cat = allCategories.find(c => c.id === currentCategory);
-    title = cat ? cat.name : 'Semua Produk';
+    title = cat ? cat.name : 'All Products';
   }
-  document.getElementById('sectionTitle').textContent = currentSearch ? `Hasil pencarian "${currentSearch}"` : title;
+  document.getElementById('sectionTitle').textContent = currentSearch ? `Search results for "${currentSearch}"` : title;
 
   let result = allProducts;
   if (currentCategory === 'new-arrivals') result = result.filter(p => p.is_new_arrival);
@@ -1237,10 +1243,10 @@ function renderProducts() {
   const start = (currentPage - 1) * PAGE_SIZE;
   const pageItems = filteredProducts.slice(start, start + PAGE_SIZE);
 
-  document.getElementById('productCount').textContent = filteredProducts.length + ' produk';
+  document.getElementById('productCount').textContent = filteredProducts.length + ' products';
 
   if (filteredProducts.length === 0) {
-    grid.innerHTML = `<div class="empty-state" style="grid-column:span 4">${currentSearch ? `Tidak ada produk untuk "${currentSearch}"` : 'Belum ada produk di kategori ini'}</div>`;
+    grid.innerHTML = `<div class="empty-state" style="grid-column:span 4">${currentSearch ? `No products found for "${currentSearch}"` : 'No products in this category yet'}</div>`;
     document.getElementById('pagination').innerHTML = '';
     return;
   }
@@ -1368,14 +1374,14 @@ function renderVariantSwatches(variants) {
     return;
   }
   section.style.display = 'block';
-  document.getElementById('variantSelectedName').textContent = 'Pilih warna';
+  document.getElementById('variantSelectedName').textContent = 'Choose a color';
   renderSwatchButtons();
 }
 
 function renderSwatchButtons() {
   document.getElementById('variantSwatches').innerHTML = currentVariants.map(v => `
     <div class="variant-swatch ${selectedVariant && v.id === selectedVariant.id ? 'active' : ''} ${!v.is_available ? 'unavailable' : ''}"
-      onclick="selectVariant('${v.id}')" title="${v.color_name}${!v.is_available ? ' (Habis)' : ''}">
+      onclick="selectVariant('${v.id}')" title="${v.color_name}${!v.is_available ? ' (Out of Stock)' : ''}">
       <div class="variant-swatch-inner">
         ${v.image_url ? `<img src="${v.image_url}" alt="${v.color_name}">` : `<span>${(v.color_name || '?').charAt(0).toUpperCase()}</span>`}
       </div>
@@ -1405,7 +1411,7 @@ function selectVariant(variantId) {
 function clearVariantSelection() {
   selectedVariant = null;
   renderSwatchButtons();
-  document.getElementById('variantSelectedName').textContent = 'Pilih warna';
+  document.getElementById('variantSelectedName').textContent = 'Choose a color';
   document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
   document.getElementById('galleryMain').src = currentGalleryImages[0] || '';
   setDetailButtonsState(true);
@@ -1416,8 +1422,8 @@ function setDetailButtonsState(available) {
   const buyBtn = document.getElementById('detailBuyNowBtn');
   addBtn.disabled = !available;
   buyBtn.disabled = !available;
-  addBtn.textContent = available ? 'Add to Cart' : 'Stok Habis';
-  buyBtn.textContent = available ? 'Order Now' : 'Stok Habis';
+  addBtn.textContent = available ? 'Add to Cart' : 'Out of Stock';
+  buyBtn.textContent = available ? 'Order Now' : 'Out of Stock';
 }
 
 function renderGallery(images, altText) {
@@ -1479,15 +1485,15 @@ function addToCart(product, variant = null) {
 }
 
 function addToCartFromDetail() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Pilih warna dulu'); return; }
-  if (selectedVariant && !selectedVariant.is_available) { showToast('Warna ini sedang habis'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select a color first'); return; }
+  if (selectedVariant && !selectedVariant.is_available) { showToast('This color is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
-  showToast('Ditambahkan ke keranjang ✓');
+  showToast('Added to cart ✓');
 }
 
 function buyNow() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Pilih warna dulu'); return; }
-  if (selectedVariant && !selectedVariant.is_available) { showToast('Warna ini sedang habis'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select a color first'); return; }
+  if (selectedVariant && !selectedVariant.is_available) { showToast('This color is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
   showPage('checkout');
 }
@@ -1502,7 +1508,7 @@ function removeFromCart(key) {
 function renderCart() {
   const el = document.getElementById('cartContent');
   if (cart.length === 0) {
-    el.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛍</div><h3>Keranjang masih kosong</h3><p>Tambahkan produk favoritmu.</p><button class="btn-primary" style="max-width:200px;margin:0 auto;display:block" onclick="showPage('shop')">Mulai Belanja</button></div>`;
+    el.innerHTML = `<div class="cart-empty"><div class="cart-empty-icon">🛍</div><h3>Your cart is empty</h3><p>Add your favorite products.</p><button class="btn-primary" style="max-width:200px;margin:0 auto;display:block" onclick="showPage('shop')">Start Shopping</button></div>`;
     return;
   }
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -1512,7 +1518,7 @@ function renderCart() {
       <div class="cart-item-info">
         <p class="cart-item-brand">${i.brand}</p>
         <p class="cart-item-name">${i.name}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Warna: ${i.color_name}</p>` : ''}
+        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}</p>` : ''}
         <p class="cart-item-price">${formatRp(i.price)}</p>
         ${i.qty > 1 ? `<p style="font-size:12px;color:var(--warm-gray);margin-top:4px">x${i.qty}</p>` : ''}
       </div>
@@ -1521,11 +1527,11 @@ function renderCart() {
   `).join('') + `
     <div class="cart-summary">
       <div class="cart-summary-row"><span>Subtotal</span><span>${formatRp(subtotal)}</span></div>
-      <div class="cart-summary-row"><span>Ongkos kirim</span><span>Dikonfirmasi via WA</span></div>
+      <div class="cart-summary-row"><span>Shipping Cost</span><span>Confirmed via WA</span></div>
       <div class="cart-summary-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>
     </div>
     <div class="cart-actions">
-      <button class="btn-primary" onclick="showPage('checkout')">Lanjut ke Checkout</button>
+      <button class="btn-primary" onclick="showPage('checkout')">Proceed to Checkout</button>
     </div>`;
 }
 
@@ -1549,13 +1555,13 @@ async function placeOrder() {
   const province = document.getElementById('fieldProvince').value.trim();
 
   if (!name || !phone || !address || !city || !province) {
-    showToast('Lengkapi semua field yang wajib (*)');
+    showToast('Please fill in all required fields (*)');
     return;
   }
 
   const btn = document.getElementById('btnOrder');
   btn.disabled = true;
-  btn.textContent = 'Memproses...';
+  btn.textContent = 'Processing...';
 
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   const orderNo = 'DF-' + Date.now().toString(36).toUpperCase().slice(-6);
@@ -1575,11 +1581,11 @@ async function placeOrder() {
   btn.disabled = false;
   btn.textContent = 'Create Order';
 
-  if (error) { showToast('Gagal membuat pesanan. Coba lagi.'); console.error(error); return; }
+  if (error) { showToast('Failed to create order. Please try again.'); console.error(error); return; }
 
   // Isi halaman sukses
   document.getElementById('successOrderNo').textContent = orderNo;
-  document.getElementById('successGreeting').textContent = 'Terima kasih, ' + name + '!';
+  document.getElementById('successGreeting').textContent = 'Thank you, ' + name + '!';
   document.getElementById('successTotal').textContent = formatRp(subtotal);
   document.getElementById('successTotal2').textContent = formatRp(subtotal);
 
@@ -1592,7 +1598,7 @@ async function placeOrder() {
       <div class="success-item-info">
         <p class="success-item-brand">${i.brand}</p>
         <p class="success-item-name">${i.name}${i.qty > 1 ? ` <span style="color:var(--warm-gray);font-size:12px">x${i.qty}</span>` : ''}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Warna: ${i.color_name}</p>` : ''}
+        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}</p>` : ''}
         <p class="success-item-price">${formatRp(i.price * i.qty)}</p>
       </div>
     </div>
@@ -1740,7 +1746,7 @@ function renderNavCategories() {
   const parentSelectEl = document.getElementById('catParentId');
 
   navEl.innerHTML =
-    `<button class="nav-cat-link active" onclick="navFilterCategory('all', this)" data-cat-id="all">Semua</button>` +
+    `<button class="nav-cat-link active" onclick="navFilterCategory('all', this)" data-cat-id="all">All</button>` +
     `<button class="nav-cat-link" onclick="navFilterCategory('new-arrivals', this)" data-cat-id="new-arrivals">New Arrivals</button>` +
     categoryTree.map(cat => {
       if (cat.children.length > 0) {
@@ -1757,7 +1763,7 @@ function renderNavCategories() {
     `<button class="nav-cat-link nav-cat-sale" onclick="navFilterCategory('clearance', this)" data-cat-id="clearance">Clearance Sale</button>`;
 
   mobileEl.innerHTML =
-    `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">Semua Produk</button>` +
+    `<button class="mobile-menu-link active" onclick="mobileFilterCategory('all', this)">All Products</button>` +
     `<button class="mobile-menu-link" onclick="mobileFilterCategory('new-arrivals', this)">New Arrivals</button>` +
     categoryTree.map(cat => {
       if (cat.children.length === 0) {
@@ -1766,7 +1772,7 @@ function renderNavCategories() {
       return `
         <div class="mobile-menu-parent-row">
           <button class="mobile-menu-link" onclick="mobileFilterCategory('${cat.id}', this)">${cat.name}</button>
-          <button class="mobile-menu-expand-btn" onclick="toggleMobileCategory('${cat.id}', event)" aria-label="Buka sub-kategori ${cat.name}">
+          <button class="mobile-menu-expand-btn" onclick="toggleMobileCategory('${cat.id}', event)" aria-label="Open ${cat.name} subcategories">
             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
           </button>
         </div>
@@ -1953,6 +1959,7 @@ function renderAdminOrdersTable() {
               <option ${o.status==='pending'?'selected':''}>pending</option>
               <option ${o.status==='confirmed'?'selected':''}>confirmed</option>
               <option ${o.status==='shipped'?'selected':''}>shipped</option>
+              <option ${o.status==='cancelled'?'selected':''}>cancelled</option>
             </select>
             <button class="btn-small btn-warning" onclick="toggleOrderDetail('detail-${o.id}')">Detail</button>
           </td>
@@ -1989,10 +1996,10 @@ async function updateOrderStatus(id, status) {
 // ── ADMIN: PRODUCTS ──
 async function loadAdminProducts() {
   const tbody = document.getElementById('productsTableBody');
-  tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Memuat...</td></tr>';
+  tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
 
-  const { data, error } = await sb.from('products').select('*').order('created_at', { ascending: false });
-  if (error) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state">Gagal memuat</td></tr>'; return; }
+  const { data, error } = await sb.from('products').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  if (error) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Gagal memuat</td></tr>'; return; }
 
   // Ambil cover tiap produk
   const ids = data.map(p => p.id);
@@ -2012,10 +2019,12 @@ function renderAdminProductsTable() {
     ? allProducts.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.brand && p.brand.toLowerCase().includes(q)))
     : allProducts;
 
-  if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="4" class="empty-state">${q ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
+  if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
 
+  const canDrag = !q;
   tbody.innerHTML = products.map(p => `
-    <tr>
+    <tr data-product-id="${p.id}" ${canDrag ? `draggable="true" ondragstart="productDragStart('${p.id}')" ondragover="productDragOver(event,'${p.id}')" ondrop="productDrop(event,'${p.id}')" ondragend="productDragEnd()"` : ''}>
+      <td>${canDrag ? `<span class="drag-handle" title="Geser untuk atur urutan tampil di toko">⠿</span>` : ''}</td>
       <td>
         ${p.cover_url
           ? `<img src="${p.cover_url}" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
@@ -2034,6 +2043,43 @@ function renderAdminProductsTable() {
       </td>
     </tr>
   `).join('');
+}
+
+// ── DRAG & DROP: URUTAN PRODUK DI TOKO ──
+let productDragSrcId = null;
+
+function productDragStart(id) {
+  productDragSrcId = id;
+  setTimeout(() => document.querySelector(`tr[data-product-id="${id}"]`)?.classList.add('dragging'), 0);
+}
+
+function productDragOver(e, id) {
+  e.preventDefault();
+  document.querySelectorAll('#productsTableBody tr').forEach(tr => {
+    tr.classList.toggle('drag-over', tr.dataset.productId === id && id !== productDragSrcId);
+  });
+}
+
+async function productDrop(e, targetId) {
+  e.preventDefault();
+  if (!productDragSrcId || productDragSrcId === targetId) return;
+  const srcIdx = allProducts.findIndex(p => p.id === productDragSrcId);
+  const targetIdx = allProducts.findIndex(p => p.id === targetId);
+  if (srcIdx === -1 || targetIdx === -1) return;
+  const [moved] = allProducts.splice(srcIdx, 1);
+  allProducts.splice(targetIdx, 0, moved);
+  renderAdminProductsTable();
+  await persistProductOrder();
+}
+
+function productDragEnd() {
+  productDragSrcId = null;
+  document.querySelectorAll('#productsTableBody tr').forEach(tr => tr.classList.remove('dragging', 'drag-over'));
+}
+
+async function persistProductOrder() {
+  await Promise.all(allProducts.map((p, i) => sb.from('products').update({ sort_order: i }).eq('id', p.id)));
+  showToast('Urutan produk disimpan ✓');
 }
 
 // ── CONVERT TO WEBP ──
@@ -2228,7 +2274,7 @@ async function addProduct() {
     const { error } = await sb.from('products').update({ brand, name, price, original_price, category_id, is_new_arrival, sale_tier, description: description||null, badge: badge||null }).eq('id', editId);
     dbError = error;
   } else {
-    const { data, error } = await sb.from('products').insert({ brand, name, price, original_price, category_id, is_new_arrival, sale_tier, description: description||null, badge: badge||null, is_active: true }).select().single();
+    const { data, error } = await sb.from('products').insert({ brand, name, price, original_price, category_id, is_new_arrival, sale_tier, description: description||null, badge: badge||null, is_active: true, sort_order: 0 }).select().single();
     dbError = error;
     if (data) productId = data.id;
   }
