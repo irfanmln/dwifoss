@@ -170,7 +170,7 @@
   .photo-upload-zone span { font-size: 11px; color: var(--warm-gray); }
 
   .photo-preview-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 8px; }
-  .photo-preview-item { position: relative; aspect-ratio: 1/1; cursor: grab; border: 2px solid transparent; transition: border-color 0.2s; }
+  .photo-preview-item { position: relative; aspect-ratio: 1/1; cursor: grab; border: 2px solid transparent; transition: border-color 0.2s; touch-action: none; }
   .photo-preview-item:active { cursor: grabbing; }
   .photo-preview-item.dragging { opacity: 0.4; border-color: var(--caramel); }
   .photo-preview-item.drag-over { border-color: var(--espresso); }
@@ -291,8 +291,8 @@
   .admin-table { width: 100%; border-collapse: collapse; font-size: 13px; }
   .admin-table th { text-align: left; padding: 10px 12px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); border-bottom: 1px solid var(--stone); font-weight: 400; }
   .admin-table td { padding: 12px; border-bottom: 1px solid var(--stone); vertical-align: middle; }
-  .drag-handle { cursor: grab; color: var(--warm-gray); font-size: 16px; user-select: none; }
-  .admin-table tbody tr[draggable="true"]:active .drag-handle { cursor: grabbing; }
+  .drag-handle { cursor: grab; color: var(--warm-gray); font-size: 16px; user-select: none; touch-action: none; }
+  .drag-handle:active { cursor: grabbing; }
   .admin-table tbody tr.dragging { opacity: 0.4; }
   .admin-table tbody tr.drag-over { box-shadow: inset 0 2px 0 var(--espresso); }
   .admin-table tr:last-child td { border-bottom: none; }
@@ -2037,7 +2037,7 @@ function renderAdminProductsTable() {
 
   const canDrag = !q;
   tbody.innerHTML = products.map(p => `
-    <tr data-product-id="${p.id}" ${canDrag ? `draggable="true" ondragstart="productDragStart('${p.id}')" ondragover="productDragOver(event,'${p.id}')" ondrop="productDrop(event,'${p.id}')" ondragend="productDragEnd()"` : ''}>
+    <tr data-product-id="${p.id}">
       <td>${canDrag ? `<span class="drag-handle" title="Geser untuk atur urutan tampil di toko">⠿</span>` : ''}</td>
       <td>
         ${p.cover_url
@@ -2060,41 +2060,83 @@ function renderAdminProductsTable() {
 }
 
 // ── DRAG & DROP: URUTAN PRODUK DI TOKO ──
-let productDragSrcId = null;
-
-function productDragStart(id) {
-  productDragSrcId = id;
-  setTimeout(() => document.querySelector(`tr[data-product-id="${id}"]`)?.classList.add('dragging'), 0);
-}
-
-function productDragOver(e, id) {
-  e.preventDefault();
-  document.querySelectorAll('#productsTableBody tr').forEach(tr => {
-    tr.classList.toggle('drag-over', tr.dataset.productId === id && id !== productDragSrcId);
-  });
-}
-
-async function productDrop(e, targetId) {
-  e.preventDefault();
-  if (!productDragSrcId || productDragSrcId === targetId) return;
-  const srcIdx = allProducts.findIndex(p => p.id === productDragSrcId);
-  const targetIdx = allProducts.findIndex(p => p.id === targetId);
-  if (srcIdx === -1 || targetIdx === -1) return;
-  const [moved] = allProducts.splice(srcIdx, 1);
-  allProducts.splice(targetIdx, 0, moved);
-  renderAdminProductsTable();
-  await persistProductOrder();
-}
-
-function productDragEnd() {
-  productDragSrcId = null;
-  document.querySelectorAll('#productsTableBody tr').forEach(tr => tr.classList.remove('dragging', 'drag-over'));
-}
-
 async function persistProductOrder() {
   await Promise.all(allProducts.map((p, i) => sb.from('products').update({ sort_order: i }).eq('id', p.id)));
   showToast('Urutan produk disimpan ✓');
 }
+
+// ── DRAG REORDER GENERIK (Pointer Events — jalan di mouse & touch/iPhone) ──
+// HTML5 native drag-and-drop (draggable="true") tidak didukung Safari iOS untuk
+// elemen custom, jadi dipakai Pointer Events yang seragam di semua perangkat.
+function enablePointerReorder(container, itemSelector, handleSelector, excludeSelector, onDrop) {
+  let dragEl = null;
+
+  container.addEventListener('pointerdown', (e) => {
+    if (excludeSelector && e.target.closest(excludeSelector)) return;
+    const handle = handleSelector ? e.target.closest(handleSelector) : e.target.closest(itemSelector);
+    if (!handle) return;
+    const item = handle.closest(itemSelector);
+    if (!item || !container.contains(item)) return;
+
+    dragEl = item;
+    dragEl.classList.add('dragging');
+    e.preventDefault();
+
+    const onMove = (ev) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const target = el ? el.closest(itemSelector) : null;
+      container.querySelectorAll(itemSelector).forEach(x => x.classList.remove('drag-over'));
+      if (target && target !== dragEl && container.contains(target)) target.classList.add('drag-over');
+    };
+    const onUp = (ev) => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+      document.removeEventListener('pointercancel', onUp);
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const target = el ? el.closest(itemSelector) : null;
+      container.querySelectorAll(itemSelector).forEach(x => x.classList.remove('dragging', 'drag-over'));
+      if (target && target !== dragEl && container.contains(target)) onDrop(dragEl, target);
+      dragEl = null;
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+    document.addEventListener('pointercancel', onUp);
+  });
+}
+
+enablePointerReorder(
+  document.getElementById('productsTableBody'),
+  'tr',
+  '.drag-handle',
+  null,
+  (dragEl, targetEl) => {
+    const srcId = dragEl.dataset.productId;
+    const targetId = targetEl.dataset.productId;
+    const srcIdx = allProducts.findIndex(p => p.id === srcId);
+    const targetIdx = allProducts.findIndex(p => p.id === targetId);
+    if (srcIdx === -1 || targetIdx === -1) return;
+    const [moved] = allProducts.splice(srcIdx, 1);
+    allProducts.splice(targetIdx, 0, moved);
+    renderAdminProductsTable();
+    persistProductOrder();
+  }
+);
+
+enablePointerReorder(
+  document.getElementById('photoPreviewGrid'),
+  '.photo-preview-item',
+  null,
+  '.photo-preview-remove',
+  (dragEl, targetEl) => {
+    const items = Array.from(document.querySelectorAll('#photoPreviewGrid .photo-preview-item'));
+    const srcIdx = items.indexOf(dragEl);
+    const targetIdx = items.indexOf(targetEl);
+    if (srcIdx === -1 || targetIdx === -1) return;
+    const [moved] = pendingPhotos.splice(srcIdx, 1);
+    pendingPhotos.splice(targetIdx, 0, moved);
+    renderPhotoPreview();
+  }
+);
 
 // ── CONVERT TO WEBP ──
 // Kompres & resize gambar sebelum upload. Mengembalikan {blob, ext} — ext mengikuti
@@ -2362,7 +2404,6 @@ async function addProduct() {
 
 // ── PHOTO STATE & DRAG-DROP ──
 let pendingPhotos = []; // [{file, url, id}] — file=null jika foto lama
-let dragSrcIdx = null;
 
 function handlePhotoSelect(event) {
   const files = Array.from(event.target.files);
@@ -2387,8 +2428,7 @@ function handleDrop(e) {
 function renderPhotoPreview() {
   const grid = document.getElementById('photoPreviewGrid');
   grid.innerHTML = pendingPhotos.map((item, i) => `
-    <div class="photo-preview-item" draggable="true"
-      ondragstart="photoDragStart(${i})" ondragover="photoDragOver(event,${i})" ondrop="photoDrop(event,${i})" ondragend="photoDragEnd()">
+    <div class="photo-preview-item">
       <img src="${item.url}" alt="foto ${i+1}">
       <button class="photo-preview-remove" onclick="removePhoto(${i})">×</button>
       ${i === 0 ? '<div class="photo-cover-label">Cover</div>' : ''}
@@ -2400,20 +2440,6 @@ function removePhoto(idx) {
   if (pendingPhotos[idx].file) URL.revokeObjectURL(pendingPhotos[idx].url);
   pendingPhotos.splice(idx, 1);
   renderPhotoPreview();
-}
-
-function photoDragStart(idx) { dragSrcIdx = idx; setTimeout(() => document.querySelectorAll('.photo-preview-item')[idx]?.classList.add('dragging'), 0); }
-function photoDragOver(e, idx) { e.preventDefault(); document.querySelectorAll('.photo-preview-item').forEach((el,i) => el.classList.toggle('drag-over', i === idx && i !== dragSrcIdx)); }
-function photoDrop(e, idx) {
-  e.preventDefault();
-  if (dragSrcIdx === null || dragSrcIdx === idx) return;
-  const moved = pendingPhotos.splice(dragSrcIdx, 1)[0];
-  pendingPhotos.splice(idx, 0, moved);
-  renderPhotoPreview();
-}
-function photoDragEnd() {
-  dragSrcIdx = null;
-  document.querySelectorAll('.photo-preview-item').forEach(el => el.classList.remove('dragging','drag-over'));
 }
 
 // ── VARIANT ADMIN ──
