@@ -272,9 +272,13 @@
   .admin-header h2 { font-family: var(--serif); font-size: 24px; font-weight: 300; letter-spacing: 2px; margin-bottom: 4px; }
   .admin-header p { font-size: 12px; color: #BFB8AD; }
   .admin-tabs { display: flex; border-bottom: 1px solid var(--stone); background: var(--white); }
-  .admin-tab { flex: 1; padding: 14px; text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none; background: none; font-family: var(--sans); color: var(--warm-gray); border-bottom: 2px solid transparent; }
+  .admin-tab { flex: 1; min-width: 0; padding: 14px 6px; text-align: center; font-size: 11px; letter-spacing: 2px; text-transform: uppercase; cursor: pointer; border: none; background: none; font-family: var(--sans); color: var(--warm-gray); border-bottom: 2px solid transparent; overflow-wrap: break-word; }
   .admin-tab.active { color: var(--espresso); border-bottom-color: var(--caramel); font-weight: 500; }
+  @media (max-width: 480px) {
+    .admin-tab { padding: 10px 3px; font-size: 9px; letter-spacing: 0.5px; }
+  }
   .admin-content { padding: 24px; }
+  .admin-scroll-top-btn { position: fixed; bottom: 24px; right: 24px; width: 48px; height: 48px; border-radius: 50%; background: var(--espresso); color: var(--ivory); border: none; display: none; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 4px 14px rgba(0,0,0,0.25); z-index: 150; }
   .admin-section { display: none; }
   .admin-section.active { display: block; }
 
@@ -922,6 +926,9 @@
     </div>
 
   </div>
+  <button class="admin-scroll-top-btn" id="adminScrollTopBtn" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Kembali ke atas">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>
+  </button>
 </div>
 
 <!-- ════ PAGE: HOW TO SHOP ════ -->
@@ -2715,6 +2722,8 @@ loadBanners();
 // Navbar shadow saat scroll
 window.addEventListener('scroll', () => {
   document.getElementById('mainNav').classList.toggle('scrolled', window.scrollY > 10);
+  const scrollTopBtn = document.getElementById('adminScrollTopBtn');
+  if (scrollTopBtn) scrollTopBtn.style.display = window.scrollY > 300 ? 'flex' : 'none';
 });
 
 // Routing: cek URL path
