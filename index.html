@@ -187,6 +187,7 @@
   .variant-admin-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .variant-admin-thumb span { color: var(--warm-gray); font-size: 18px; }
   .variant-admin-row .form-input { flex: 1; min-width: 110px; margin-bottom: 0; }
+  .variant-admin-row .variant-size-input { flex: 0.5; min-width: 70px; }
   .variant-admin-avail { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--warm-gray); white-space: nowrap; cursor: pointer; }
   .variant-admin-remove { flex-shrink: 0; width: 28px; height: 28px; background: none; border: 1px solid var(--stone); cursor: pointer; font-size: 14px; color: var(--warm-gray); }
 
@@ -202,6 +203,11 @@
   .variant-swatch.active { border-color: var(--espresso); }
   .variant-swatch.unavailable { opacity: 0.4; cursor: not-allowed; }
   .variant-swatch.unavailable::after { content: ''; position: absolute; top: 50%; left: 6%; width: 88%; height: 1px; background: var(--espresso); transform: rotate(-40deg); }
+  .size-section { margin-top: 16px; }
+  .size-swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+  .size-swatch { min-width: 44px; height: 36px; padding: 0 12px; border: 1px solid var(--stone); background: var(--white); cursor: pointer; font-size: 13px; color: var(--espresso); }
+  .size-swatch.active { border-color: var(--espresso); border-width: 2px; font-weight: 600; }
+  .size-swatch.unavailable { opacity: 0.4; cursor: not-allowed; text-decoration: line-through; }
 
   /* BUTTONS */
   .btn-primary { width: 100%; background: var(--espresso); color: var(--ivory); border: none; padding: 16px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; transition: background 0.2s; font-weight: 500; }
@@ -540,6 +546,10 @@
         <div class="variant-section" id="variantSection" style="display:none">
           <p class="variant-label">Color: <span id="variantSelectedName"></span></p>
           <div class="variant-swatches" id="variantSwatches"></div>
+          <div class="size-section" id="sizeSection" style="display:none">
+            <p class="variant-label">Size</p>
+            <div class="size-swatches" id="sizeSwatches"></div>
+          </div>
         </div>
         <p class="detail-desc" id="detailDesc"></p>
         <button class="btn-primary" id="detailAddToCartBtn" onclick="addToCartFromDetail()">Add to Cart</button>
@@ -1368,7 +1378,12 @@ async function openDetail(id) {
 }
 
 // ── VARIANT SWATCHES (detail page) ──
+// currentVariants: baris flat product_variants (tiap baris = 1 kombinasi warna+ukuran).
+// colorGroups: daftar warna unik (untuk swatch pertama), dibentuk dari currentVariants.
 let currentVariants = [];
+let colorGroups = [];
+let selectedColorIndex = null;
+let currentSizes = [];
 let selectedVariant = null;
 let currentGalleryImages = [];
 let galleryIndex = 0;
@@ -1376,42 +1391,104 @@ let galleryIndex = 0;
 function renderVariantSwatches(variants) {
   currentVariants = variants;
   selectedVariant = null;
+  selectedColorIndex = null;
+  currentSizes = [];
   const section = document.getElementById('variantSection');
   // Harga awal & foto utama selalu dari data produk (katalog) — foto/harga varian
-  // baru menggantikannya setelah pembeli benar-benar klik salah satu warna.
+  // baru menggantikannya setelah pembeli benar-benar menyelesaikan pilihan.
   document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
   setDetailButtonsState(true);
+  document.getElementById('sizeSection').style.display = 'none';
   if (!variants || variants.length === 0) {
     section.style.display = 'none';
+    colorGroups = [];
     return;
   }
   section.style.display = 'block';
+  colorGroups = [];
+  variants.forEach(v => {
+    let g = colorGroups.find(g => g.color_name === v.color_name);
+    if (!g) { g = { color_name: v.color_name, image_url: v.image_url || null, allUnavailable: true }; colorGroups.push(g); }
+    if (!g.image_url && v.image_url) g.image_url = v.image_url;
+    if (v.is_available) g.allUnavailable = false;
+  });
   document.getElementById('variantSelectedName').textContent = 'Choose a color';
-  renderSwatchButtons();
+  renderColorButtons();
 }
 
-function renderSwatchButtons() {
-  document.getElementById('variantSwatches').innerHTML = currentVariants.map(v => `
-    <div class="variant-swatch ${selectedVariant && v.id === selectedVariant.id ? 'active' : ''} ${!v.is_available ? 'unavailable' : ''}"
-      onclick="selectVariant('${v.id}')" title="${v.color_name}${!v.is_available ? ' (Out of Stock)' : ''}">
+function renderColorButtons() {
+  document.getElementById('variantSwatches').innerHTML = colorGroups.map((g, i) => `
+    <div class="variant-swatch ${selectedColorIndex === i ? 'active' : ''} ${g.allUnavailable ? 'unavailable' : ''}"
+      onclick="selectColorByIndex(${i})" title="${g.color_name}${g.allUnavailable ? ' (Out of Stock)' : ''}">
       <div class="variant-swatch-inner">
-        ${v.image_url ? `<img src="${v.image_url}" alt="${v.color_name}">` : `<span>${(v.color_name || '?').charAt(0).toUpperCase()}</span>`}
+        ${g.image_url ? `<img src="${g.image_url}" alt="${g.color_name}">` : `<span>${(g.color_name || '?').charAt(0).toUpperCase()}</span>`}
       </div>
     </div>
   `).join('');
 }
 
-function selectVariant(variantId) {
+function selectColorByIndex(i) {
   // Klik warna yang sudah aktif = batalkan pilihan, balik ke foto & harga katalog
-  if (selectedVariant && selectedVariant.id === variantId) {
+  if (selectedColorIndex === i) {
     clearVariantSelection();
     return;
   }
-  const v = currentVariants.find(x => x.id === variantId);
+  selectedColorIndex = i;
+  selectedVariant = null;
+  const colorName = colorGroups[i].color_name;
+  const rows = currentVariants.filter(v => v.color_name === colorName);
+  currentSizes = [...new Set(rows.filter(v => v.size_label && v.size_label.trim()).map(v => v.size_label))];
+  renderColorButtons();
+  document.getElementById('variantSelectedName').textContent = colorName;
+
+  const sizeSection = document.getElementById('sizeSection');
+  if (currentSizes.length === 0) {
+    // Warna ini tidak punya dimensi ukuran — langsung selesaikan varian
+    sizeSection.style.display = 'none';
+    applyVariant(rows[0]);
+  } else {
+    sizeSection.style.display = 'block';
+    document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
+    setDetailButtonsState(true);
+    renderSizeButtons();
+    // Tampilkan foto representatif warna ini sebagai preview; harga tetap harga
+    // katalog sampai ukuran benar-benar dipilih.
+    const overrideEl = document.getElementById('galleryMain');
+    if (colorGroups[i].image_url) {
+      overrideEl.src = colorGroups[i].image_url;
+      overrideEl.style.display = 'block';
+      document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
+    } else {
+      overrideEl.style.display = 'none';
+    }
+  }
+}
+
+function renderSizeButtons() {
+  const colorName = colorGroups[selectedColorIndex].color_name;
+  document.getElementById('sizeSwatches').innerHTML = currentSizes.map((s, i) => {
+    const rows = currentVariants.filter(v => v.color_name === colorName && v.size_label === s);
+    const available = rows.some(v => v.is_available);
+    const active = !!(selectedVariant && selectedVariant.size_label === s);
+    return `<button type="button" class="size-swatch ${active ? 'active' : ''} ${!available ? 'unavailable' : ''}"
+      onclick="selectSizeByIndex(${i})" ${!available ? 'disabled' : ''}>${s}</button>`;
+  }).join('');
+}
+
+function selectSizeByIndex(i) {
+  const s = currentSizes[i];
+  const colorName = colorGroups[selectedColorIndex].color_name;
+  const v = currentVariants.find(x => x.color_name === colorName && x.size_label === s);
   if (!v) return;
+  applyVariant(v);
+  renderSizeButtons();
+}
+
+// Selesaikan varian akhir (dipanggil setelah warna+ukuran lengkap, atau langsung
+// setelah pilih warna kalau warna itu tidak punya dimensi ukuran).
+function applyVariant(v) {
   selectedVariant = v;
-  renderSwatchButtons();
-  document.getElementById('variantSelectedName').textContent = v.color_name;
+  renderColorButtons();
   document.getElementById('detailPrice').innerHTML = priceHtml(v.price, v.original_price);
   if (v.image_url) {
     const overrideEl = document.getElementById('galleryMain');
@@ -1424,9 +1501,12 @@ function selectVariant(variantId) {
 
 function clearVariantSelection() {
   selectedVariant = null;
-  renderSwatchButtons();
+  selectedColorIndex = null;
+  currentSizes = [];
+  renderColorButtons();
   document.getElementById('variantSelectedName').textContent = 'Choose a color';
   document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
+  document.getElementById('sizeSection').style.display = 'none';
   document.getElementById('galleryMain').style.display = 'none';
   galleryIndex = 0;
   updateGalleryTrackPosition();
@@ -1538,6 +1618,7 @@ function addToCart(product, variant = null) {
       id: product.id,
       variant_id: variant ? variant.id : null,
       color_name: variant ? variant.color_name : null,
+      size_label: variant ? variant.size_label : null,
       brand: product.brand,
       name: product.name,
       price: variant ? variant.price : product.price,
@@ -1549,15 +1630,15 @@ function addToCart(product, variant = null) {
 }
 
 function addToCartFromDetail() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select a color first'); return; }
-  if (selectedVariant && !selectedVariant.is_available) { showToast('This color is out of stock'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select color & size first'); return; }
+  if (selectedVariant && !selectedVariant.is_available) { showToast('This option is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
   showToast('Added to cart ✓');
 }
 
 function buyNow() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select a color first'); return; }
-  if (selectedVariant && !selectedVariant.is_available) { showToast('This color is out of stock'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select color & size first'); return; }
+  if (selectedVariant && !selectedVariant.is_available) { showToast('This option is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
   showPage('checkout');
 }
@@ -1582,7 +1663,7 @@ function renderCart() {
       <div class="cart-item-info">
         <p class="cart-item-brand">${i.brand}</p>
         <p class="cart-item-name">${i.name}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}</p>` : ''}
+        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}${i.size_label ? ` · Size: ${i.size_label}` : ''}</p>` : ''}
         <p class="cart-item-price">${formatRp(i.price)}</p>
         ${i.qty > 1 ? `<p style="font-size:12px;color:var(--warm-gray);margin-top:4px">x${i.qty}</p>` : ''}
       </div>
@@ -1604,7 +1685,7 @@ function renderCheckoutSummary() {
   const el = document.getElementById('checkoutSummary');
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   el.innerHTML = cart.map(i => `
-    <div class="order-mini-item"><span>${i.name}${i.color_name ? ` (${i.color_name})` : ''}${i.qty > 1 ? ` x${i.qty}` : ''}</span><span>${formatRp(i.price * i.qty)}</span></div>
+    <div class="order-mini-item"><span>${i.name}${i.color_name ? ` (${i.color_name}${i.size_label ? ', ' + i.size_label : ''})` : ''}${i.qty > 1 ? ` x${i.qty}` : ''}</span><span>${formatRp(i.price * i.qty)}</span></div>
   `).join('') + `<div class="order-mini-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>`;
 }
 
@@ -1662,7 +1743,7 @@ async function placeOrder() {
       <div class="success-item-info">
         <p class="success-item-brand">${i.brand}</p>
         <p class="success-item-name">${i.name}${i.qty > 1 ? ` <span style="color:var(--warm-gray);font-size:12px">x${i.qty}</span>` : ''}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}</p>` : ''}
+        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}${i.size_label ? ` · Size: ${i.size_label}` : ''}</p>` : ''}
         <p class="success-item-price">${formatRp(i.price * i.qty)}</p>
       </div>
     </div>
@@ -1677,7 +1758,7 @@ async function placeOrder() {
     `${phone}${email ? '<br>' + email : ''}`;
 
   // Tombol konfirmasi WhatsApp
-  const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${i.color_name ? ' ('+i.color_name+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
+  const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${i.color_name ? ' ('+i.color_name+(i.size_label ? ', '+i.size_label : '')+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
   const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\nNo. Pesanan: ${orderNo}\nNama: ${name}\nNo. HP: ${phone}\n\nProduk:\n${waItemsText}\n\nTotal: ${formatRp(subtotal)}\n\nAlamat Pengiriman:\n${address}, ${city}, ${province}${zip ? ' ' + zip : ''}`;
   document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
@@ -1995,11 +2076,14 @@ function renderAdminOrdersTable() {
     <tbody>
       ${orders.map(o => {
         const items = Array.isArray(o.items) ? o.items : [];
-        const itemsHtml = items.map(i => `
+        const itemsHtml = items.map(i => {
+          const variantText = i.color_name ? ` (${i.color_name}${i.size_label ? ', ' + i.size_label : ''})` : '';
+          return `
           <div class="order-item-row">
-            <span>${i.brand} — ${i.name}${i.qty>1?' x'+i.qty:''}</span>
+            <span>${i.brand} — ${i.name}${variantText}${i.qty>1?' x'+i.qty:''}</span>
             <span>${formatRp(i.price * i.qty)}</span>
-          </div>`).join('');
+          </div>`;
+        }).join('');
         const history = allOrders.filter(h => h.customer_phone === o.customer_phone && h.id !== o.id);
         const historyHtml = history.length > 0
           ? history.map(h => `
@@ -2435,6 +2519,7 @@ async function addProduct() {
       await sb.from('product_variants').insert({
         product_id: productId,
         color_name: v.color_name.trim(),
+        size_label: v.size_label && v.size_label.trim() ? v.size_label.trim() : null,
         image_url: variantImageUrl,
         price: parseInt(v.price),
         original_price: v.original_price ? parseInt(v.original_price) : null,
@@ -2499,10 +2584,10 @@ function removePhoto(idx) {
 }
 
 // ── VARIANT ADMIN ──
-let pendingVariants = []; // [{id, file, url, color_name, price, original_price, is_available}]
+let pendingVariants = []; // [{id, file, url, color_name, size_label, price, original_price, is_available}]
 
 function addVariantRow() {
-  pendingVariants.push({ id: null, file: null, url: '', color_name: '', price: '', original_price: '', is_available: true });
+  pendingVariants.push({ id: null, file: null, url: '', color_name: '', size_label: '', price: '', original_price: '', is_available: true });
   renderVariantAdminList();
 }
 
@@ -2537,6 +2622,7 @@ function renderVariantAdminList() {
         <input type="file" id="variantPhotoInput${i}" accept="image/*" style="display:none" onchange="handleVariantPhotoSelect(${i}, event)">
       </div>
       <input class="form-input" placeholder="Nama warna" value="${v.color_name || ''}" oninput="updateVariantField(${i}, 'color_name', this.value)">
+      <input class="form-input variant-size-input" placeholder="Ukuran (opsional)" value="${v.size_label || ''}" oninput="updateVariantField(${i}, 'size_label', this.value)">
       <input class="form-input" type="number" placeholder="Harga" value="${v.price || ''}" oninput="updateVariantField(${i}, 'price', this.value)">
       <input class="form-input" type="number" placeholder="Harga dasar (opsional)" value="${v.original_price || ''}" oninput="updateVariantField(${i}, 'original_price', this.value)">
       <label class="variant-admin-avail"><input type="checkbox" ${v.is_available !== false ? 'checked' : ''} onchange="updateVariantField(${i}, 'is_available', this.checked)"> Tersedia</label>
@@ -2593,7 +2679,7 @@ async function editProduct(id) {
   // Load varian warna existing
   pendingVariants = [];
   const { data: vars } = await sb.from('product_variants').select('*').eq('product_id', id).order('sort_order', { ascending: true });
-  if (vars) vars.forEach(v => pendingVariants.push({ id: v.id, file: null, url: v.image_url || '', color_name: v.color_name, price: v.price, original_price: v.original_price || '', is_available: v.is_available }));
+  if (vars) vars.forEach(v => pendingVariants.push({ id: v.id, file: null, url: v.image_url || '', color_name: v.color_name, size_label: v.size_label || '', price: v.price, original_price: v.original_price || '', is_available: v.is_available }));
   renderVariantAdminList();
 
   document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
