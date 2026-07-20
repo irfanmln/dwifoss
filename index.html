@@ -155,8 +155,11 @@
   .gallery-thumbs { display: flex; flex-direction: column; gap: 8px; width: 72px; flex-shrink: 0; overflow-y: auto; }
   .gallery-thumb { width: 100%; aspect-ratio: 1/1; object-fit: cover; cursor: pointer; border: 2px solid transparent; transition: border-color 0.2s; opacity: 0.7; flex-shrink: 0; }
   .gallery-thumb.active { border-color: var(--espresso); opacity: 1; }
-  .gallery-main-wrap { flex: 1; }
-  .gallery-main { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
+  .gallery-main-wrap { flex: 1; position: relative; overflow: hidden; }
+  .gallery-main-track { display: flex; transition: transform 0.3s ease; touch-action: pan-y; }
+  .gallery-main-slide { flex: 0 0 100%; min-width: 0; }
+  .gallery-main-slide img { width: 100%; aspect-ratio: 1/1; object-fit: cover; display: block; background: var(--stone); }
+  .gallery-main-override { position: absolute; inset: 0; width: 100%; height: 100%; aspect-ratio: 1/1; object-fit: cover; display: none; background: var(--stone); }
   @media (max-width: 767px) {
     .gallery-thumbs { flex-direction: row; width: 100%; overflow-x: auto; }
     .gallery-wrap { flex-direction: column-reverse; gap: 8px; }
@@ -523,8 +526,9 @@
       <div class="detail-img-wrap">
         <div class="gallery-wrap" id="galleryWrap">
           <div class="gallery-thumbs" id="galleryThumbs"></div>
-          <div class="gallery-main-wrap">
-            <img class="gallery-main" id="galleryMain" src="" alt="">
+          <div class="gallery-main-wrap" id="galleryMainWrap">
+            <div class="gallery-main-track" id="galleryMainTrack"></div>
+            <img class="gallery-main-override" id="galleryMain" src="" alt="">
           </div>
         </div>
       </div>
@@ -1367,6 +1371,7 @@ async function openDetail(id) {
 let currentVariants = [];
 let selectedVariant = null;
 let currentGalleryImages = [];
+let galleryIndex = 0;
 
 function renderVariantSwatches(variants) {
   currentVariants = variants;
@@ -1409,7 +1414,9 @@ function selectVariant(variantId) {
   document.getElementById('variantSelectedName').textContent = v.color_name;
   document.getElementById('detailPrice').innerHTML = priceHtml(v.price, v.original_price);
   if (v.image_url) {
-    document.getElementById('galleryMain').src = v.image_url;
+    const overrideEl = document.getElementById('galleryMain');
+    overrideEl.src = v.image_url;
+    overrideEl.style.display = 'block';
     document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
   }
   setDetailButtonsState(v.is_available);
@@ -1420,7 +1427,9 @@ function clearVariantSelection() {
   renderSwatchButtons();
   document.getElementById('variantSelectedName').textContent = 'Choose a color';
   document.getElementById('detailPrice').innerHTML = priceHtml(currentProduct.price, currentProduct.original_price);
-  document.getElementById('galleryMain').src = currentGalleryImages[0] || '';
+  document.getElementById('galleryMain').style.display = 'none';
+  galleryIndex = 0;
+  updateGalleryTrackPosition();
   setDetailButtonsState(true);
 }
 
@@ -1435,19 +1444,24 @@ function setDetailButtonsState(available) {
 
 function renderGallery(images, altText) {
   currentGalleryImages = images;
-  const mainEl = document.getElementById('galleryMain');
+  galleryIndex = 0;
+  const trackEl = document.getElementById('galleryMainTrack');
+  const overrideEl = document.getElementById('galleryMain');
   const thumbsEl = document.getElementById('galleryThumbs');
 
+  overrideEl.style.display = 'none';
+
   if (images.length === 0) {
-    mainEl.src = '';
-    mainEl.style.background = 'var(--stone)';
+    trackEl.innerHTML = `<div class="gallery-main-slide"><img src="" alt="${altText}"></div>`;
     thumbsEl.innerHTML = '';
     return;
   }
 
-  // Tampilkan foto pertama sebagai main
-  mainEl.src = images[0];
-  mainEl.alt = altText;
+  trackEl.innerHTML = images.map((url, i) => `
+    <div class="gallery-main-slide"><img src="${url}" alt="${altText} ${i+1}" loading="${i === 0 ? 'eager' : 'lazy'}"></div>
+  `).join('');
+  updateGalleryTrackPosition();
+  initGallerySwipe();
 
   // Sembunyikan thumbs kalau hanya 1 foto
   if (images.length <= 1) {
@@ -1460,7 +1474,7 @@ function renderGallery(images, altText) {
   thumbsEl.innerHTML = images.map((url, i) => `
     <img class="gallery-thumb ${i === 0 ? 'active' : ''}"
       src="${url}" alt="${altText} ${i+1}" loading="lazy"
-      onclick="selectGalleryImg(this, '${url}')">
+      onclick="selectGalleryImg(${i})">
   `).join('');
 
   syncGalleryThumbsHeight();
@@ -1470,18 +1484,47 @@ function renderGallery(images, altText) {
 // supaya ujung bawahnya sejajar berapapun jumlah fotonya / lebar layarnya.
 function syncGalleryThumbsHeight() {
   const thumbsEl = document.getElementById('galleryThumbs');
-  const mainEl = document.getElementById('galleryMain');
-  if (!thumbsEl || !mainEl) return;
+  const wrapEl = document.getElementById('galleryMainWrap');
+  if (!thumbsEl || !wrapEl) return;
   if (window.innerWidth < 768) { thumbsEl.style.maxHeight = ''; return; }
-  thumbsEl.style.maxHeight = mainEl.offsetHeight + 'px';
+  thumbsEl.style.maxHeight = wrapEl.offsetHeight + 'px';
 }
 
 window.addEventListener('resize', () => syncGalleryThumbsHeight());
 
-function selectGalleryImg(thumbEl, url) {
-  document.getElementById('galleryMain').src = url;
-  document.querySelectorAll('.gallery-thumb').forEach(t => t.classList.remove('active'));
-  thumbEl.classList.add('active');
+function updateGalleryTrackPosition() {
+  const trackEl = document.getElementById('galleryMainTrack');
+  if (trackEl) trackEl.style.transform = `translateX(-${galleryIndex * 100}%)`;
+  document.querySelectorAll('.gallery-thumb').forEach((t, i) => t.classList.toggle('active', i === galleryIndex));
+}
+
+function selectGalleryImg(index) {
+  // Klik thumbnail keluar dari mode foto varian, balik ke galeri umum
+  document.getElementById('galleryMain').style.display = 'none';
+  galleryIndex = index;
+  updateGalleryTrackPosition();
+}
+
+function gallerySlide(delta) {
+  const newIndex = galleryIndex + delta;
+  if (newIndex < 0 || newIndex >= currentGalleryImages.length) return;
+  selectGalleryImg(newIndex);
+}
+
+let galleryTouchStartX = null;
+function initGallerySwipe() {
+  const el = document.getElementById('galleryMainWrap');
+  if (!el || el.dataset.swipeInit) return;
+  el.dataset.swipeInit = '1';
+  el.addEventListener('touchstart', e => { galleryTouchStartX = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (galleryTouchStartX === null || currentGalleryImages.length <= 1) return;
+    const dx = e.changedTouches[0].clientX - galleryTouchStartX;
+    galleryTouchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    if (dx < 0) gallerySlide(1);
+    else gallerySlide(-1);
+  }, { passive: true });
 }
 
 // ── CART ACTIONS ──
