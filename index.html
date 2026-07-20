@@ -760,7 +760,7 @@
           </select>
         </div>
         <div class="form-group">
-          <label class="form-label">Foto Produk (drag untuk atur urutan, paling kiri = cover)</label>
+          <label class="form-label">Foto Produk (drag untuk atur urutan, paling kiri = cover, maks. 10 foto)</label>
           <div class="photo-upload-zone" id="photoUploadZone" onclick="document.getElementById('pImageInput').click()" ondragover="handleDragOver(event)" ondragleave="handleDragLeave(event)" ondrop="handleDrop(event)">
             <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="color:var(--warm-gray)"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
             <p>Klik atau drag foto ke sini</p>
@@ -1459,7 +1459,7 @@ function renderGallery(images, altText) {
   thumbsEl.style.display = 'flex';
   thumbsEl.innerHTML = images.map((url, i) => `
     <img class="gallery-thumb ${i === 0 ? 'active' : ''}"
-      src="${url}" alt="${altText} ${i+1}"
+      src="${url}" alt="${altText} ${i+1}" loading="lazy"
       onclick="selectGalleryImg(this, '${url}')">
   `).join('');
 
@@ -2048,7 +2048,7 @@ function renderAdminProductsTable() {
       <td>${canDrag ? `<span class="drag-handle" title="Geser untuk atur urutan tampil di toko">⠿</span>` : ''}</td>
       <td>
         ${p.cover_url
-          ? `<img src="${p.cover_url}" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
+          ? `<img src="${p.cover_url}" loading="lazy" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
           : `<span style="font-size:24px;display:block;margin-bottom:4px">👜</span>`}
         <strong style="font-size:13px;display:block">${p.name}</strong>
         <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
@@ -2412,14 +2412,21 @@ async function addProduct() {
 // ── PHOTO STATE & DRAG-DROP ──
 let pendingPhotos = []; // [{file, url, id}] — file=null jika foto lama
 
+const MAX_PRODUCT_PHOTOS = 10;
+
+function addPendingPhotos(files) {
+  const remaining = MAX_PRODUCT_PHOTOS - pendingPhotos.length;
+  if (remaining <= 0) { showToast(`Maksimal ${MAX_PRODUCT_PHOTOS} foto per produk`); return; }
+  const toAdd = files.slice(0, remaining);
+  toAdd.forEach(f => pendingPhotos.push({ file: f, url: URL.createObjectURL(f), id: Date.now() + Math.random() }));
+  if (files.length > toAdd.length) showToast(`Maksimal ${MAX_PRODUCT_PHOTOS} foto per produk — sebagian foto tidak ditambahkan`);
+  renderPhotoPreview();
+}
+
 function handlePhotoSelect(event) {
   const files = Array.from(event.target.files);
-  files.forEach(f => {
-    const url = URL.createObjectURL(f);
-    pendingPhotos.push({ file: f, url, id: Date.now() + Math.random() });
-  });
   event.target.value = '';
-  renderPhotoPreview();
+  addPendingPhotos(files);
 }
 
 function handleDragOver(e) { e.preventDefault(); document.getElementById('photoUploadZone').classList.add('dragover'); }
@@ -2428,8 +2435,7 @@ function handleDrop(e) {
   e.preventDefault();
   document.getElementById('photoUploadZone').classList.remove('dragover');
   const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
-  files.forEach(f => { pendingPhotos.push({ file: f, url: URL.createObjectURL(f), id: Date.now() + Math.random() }); });
-  renderPhotoPreview();
+  addPendingPhotos(files);
 }
 
 function renderPhotoPreview() {
