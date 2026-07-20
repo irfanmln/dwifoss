@@ -187,9 +187,14 @@
   .variant-admin-thumb img { width: 100%; height: 100%; object-fit: cover; }
   .variant-admin-thumb span { color: var(--warm-gray); font-size: 18px; }
   .variant-admin-row .form-input { flex: 1; min-width: 110px; margin-bottom: 0; }
-  .variant-admin-row .variant-size-input { flex: 0.5; min-width: 70px; }
   .variant-admin-avail { display: flex; align-items: center; gap: 6px; font-size: 12px; color: var(--warm-gray); white-space: nowrap; cursor: pointer; }
   .variant-admin-remove { flex-shrink: 0; width: 28px; height: 28px; background: none; border: 1px solid var(--stone); cursor: pointer; font-size: 14px; color: var(--warm-gray); }
+  .variant-group-label { font-size: 12px; font-weight: 600; color: var(--espresso); margin: 4px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+  .variant-grid-wrap { overflow-x: auto; margin-top: 8px; }
+  .variant-grid-table { border-collapse: collapse; width: 100%; }
+  .variant-grid-table th, .variant-grid-table td { border: 1px solid var(--stone); padding: 8px; text-align: left; vertical-align: top; font-size: 12px; }
+  .variant-grid-table th { white-space: nowrap; background: var(--ivory); }
+  .variant-grid-table .variant-grid-price { width: 110px; margin-bottom: 4px; display: block; }
 
   /* VARIANT SWATCHES (detail page) */
   .variant-section { margin: -10px 0 24px; }
@@ -544,7 +549,7 @@
         <h2 class="detail-name" id="detailName"></h2>
         <p class="detail-price" id="detailPrice"></p>
         <div class="variant-section" id="variantSection" style="display:none">
-          <p class="variant-label">Color: <span id="variantSelectedName"></span></p>
+          <p class="variant-label" id="colorLabel">Color: <span id="variantSelectedName"></span></p>
           <div class="variant-swatches" id="variantSwatches"></div>
           <div class="size-section" id="sizeSection" style="display:none">
             <p class="variant-label">Size</p>
@@ -784,9 +789,8 @@
           <div class="photo-preview-grid" id="photoPreviewGrid"></div>
         </div>
         <div class="form-group">
-          <label class="form-label">Varian Warna (opsional — kosongkan kalau produk ini tidak punya pilihan warna)</label>
+          <label class="form-label">Varian Warna & Ukuran (opsional — kosongkan kalau produk ini tidak punya varian)</label>
           <div id="variantAdminList"></div>
-          <button type="button" class="btn-secondary" onclick="addVariantRow()" style="width:auto;display:inline-block;margin-top:8px;padding:8px 16px">+ Tambah Warna</button>
         </div>
         <div class="form-group">
           <label class="form-label">Deskripsi</label>
@@ -1347,6 +1351,11 @@ function wrapDescSelection(marker) {
   el.focus();
 }
 
+// "Black, 40" / "Black" / "40" / "" tergantung kombinasi warna/ukuran yang ada
+function variantText(item) {
+  return [item.color_name, item.size_label].filter(Boolean).join(', ');
+}
+
 function priceHtml(price, originalPrice) {
   const hasDiscount = originalPrice && originalPrice > price;
   const discountPct = hasDiscount ? Math.round((1 - price / originalPrice) * 100) : 0;
@@ -1412,6 +1421,19 @@ function renderVariantSwatches(variants) {
     if (!g.image_url && v.image_url) g.image_url = v.image_url;
     if (v.is_available) g.allUnavailable = false;
   });
+
+  // Produk tanpa dimensi warna sama sekali (cuma ukuran) — lompat langsung ke pilihan ukuran
+  const isSizeOnly = colorGroups.length === 1 && !colorGroups[0].color_name;
+  if (isSizeOnly) {
+    document.getElementById('colorLabel').style.display = 'none';
+    document.getElementById('variantSwatches').innerHTML = '';
+    selectedColorIndex = 0;
+    currentSizes = [...new Set(variants.filter(v => v.size_label && v.size_label.trim()).map(v => v.size_label))];
+    document.getElementById('sizeSection').style.display = 'block';
+    renderSizeButtons();
+    return;
+  }
+  document.getElementById('colorLabel').style.display = '';
   document.getElementById('variantSelectedName').textContent = 'Choose a color';
   renderColorButtons();
 }
@@ -1630,14 +1652,14 @@ function addToCart(product, variant = null) {
 }
 
 function addToCartFromDetail() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select color & size first'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select your options first'); return; }
   if (selectedVariant && !selectedVariant.is_available) { showToast('This option is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
   showToast('Added to cart ✓');
 }
 
 function buyNow() {
-  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select color & size first'); return; }
+  if (currentVariants.length > 0 && !selectedVariant) { showToast('Please select your options first'); return; }
   if (selectedVariant && !selectedVariant.is_available) { showToast('This option is out of stock'); return; }
   addToCart(currentProduct, selectedVariant);
   showPage('checkout');
@@ -1663,7 +1685,7 @@ function renderCart() {
       <div class="cart-item-info">
         <p class="cart-item-brand">${i.brand}</p>
         <p class="cart-item-name">${i.name}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}${i.size_label ? ` · Size: ${i.size_label}` : ''}</p>` : ''}
+        ${variantText(i) ? `<p style="font-size:12px;color:var(--warm-gray)">${variantText(i)}</p>` : ''}
         <p class="cart-item-price">${formatRp(i.price)}</p>
         ${i.qty > 1 ? `<p style="font-size:12px;color:var(--warm-gray);margin-top:4px">x${i.qty}</p>` : ''}
       </div>
@@ -1685,7 +1707,7 @@ function renderCheckoutSummary() {
   const el = document.getElementById('checkoutSummary');
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
   el.innerHTML = cart.map(i => `
-    <div class="order-mini-item"><span>${i.name}${i.color_name ? ` (${i.color_name}${i.size_label ? ', ' + i.size_label : ''})` : ''}${i.qty > 1 ? ` x${i.qty}` : ''}</span><span>${formatRp(i.price * i.qty)}</span></div>
+    <div class="order-mini-item"><span>${i.name}${variantText(i) ? ` (${variantText(i)})` : ''}${i.qty > 1 ? ` x${i.qty}` : ''}</span><span>${formatRp(i.price * i.qty)}</span></div>
   `).join('') + `<div class="order-mini-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>`;
 }
 
@@ -1743,7 +1765,7 @@ async function placeOrder() {
       <div class="success-item-info">
         <p class="success-item-brand">${i.brand}</p>
         <p class="success-item-name">${i.name}${i.qty > 1 ? ` <span style="color:var(--warm-gray);font-size:12px">x${i.qty}</span>` : ''}</p>
-        ${i.color_name ? `<p style="font-size:12px;color:var(--warm-gray)">Color: ${i.color_name}${i.size_label ? ` · Size: ${i.size_label}` : ''}</p>` : ''}
+        ${variantText(i) ? `<p style="font-size:12px;color:var(--warm-gray)">${variantText(i)}</p>` : ''}
         <p class="success-item-price">${formatRp(i.price * i.qty)}</p>
       </div>
     </div>
@@ -1758,7 +1780,7 @@ async function placeOrder() {
     `${phone}${email ? '<br>' + email : ''}`;
 
   // Tombol konfirmasi WhatsApp
-  const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${i.color_name ? ' ('+i.color_name+(i.size_label ? ', '+i.size_label : '')+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
+  const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${variantText(i) ? ' ('+variantText(i)+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
   const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\nNo. Pesanan: ${orderNo}\nNama: ${name}\nNo. HP: ${phone}\n\nProduk:\n${waItemsText}\n\nTotal: ${formatRp(subtotal)}\n\nAlamat Pengiriman:\n${address}, ${city}, ${province}${zip ? ' ' + zip : ''}`;
   document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
@@ -2077,10 +2099,10 @@ function renderAdminOrdersTable() {
       ${orders.map(o => {
         const items = Array.isArray(o.items) ? o.items : [];
         const itemsHtml = items.map(i => {
-          const variantText = i.color_name ? ` (${i.color_name}${i.size_label ? ', ' + i.size_label : ''})` : '';
+          const variantSuffix = variantText(i) ? ` (${variantText(i)})` : '';
           return `
           <div class="order-item-row">
-            <span>${i.brand} — ${i.name}${variantText}${i.qty>1?' x'+i.qty:''}</span>
+            <span>${i.brand} — ${i.name}${variantSuffix}${i.qty>1?' x'+i.qty:''}</span>
             <span>${formatRp(i.price * i.qty)}</span>
           </div>`;
         }).join('');
@@ -2450,7 +2472,6 @@ async function addProduct() {
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
   if (pendingPhotos.length === 0) { showToast('Minimal 1 foto produk wajib diupload'); return; }
   if (original_price && original_price <= price) { showToast('Harga dasar harus lebih besar dari harga jual'); return; }
-  if (pendingVariants.some(v => v.color_name && v.color_name.trim() && !v.price)) { showToast('Ada varian warna yang belum diisi harganya'); return; }
 
   const btn = document.getElementById('pSubmitBtn');
   btn.disabled = true;
@@ -2497,35 +2518,56 @@ async function addProduct() {
     }
   }
 
-  // Simpan varian warna (hapus semua punya lama saat edit, insert ulang)
+  // Simpan varian (hapus semua punya lama saat edit, insert ulang dari grid warna x ukuran)
   if (editId) {
     await sb.from('product_variants').delete().eq('product_id', productId);
   }
-  const validVariants = pendingVariants.filter(v => v.color_name && v.color_name.trim() && v.price);
-  if (validVariants.length > 0) {
+  if (pendingColors.length > 0 || pendingSizes.length > 0) {
     btn.textContent = 'Menyimpan varian...';
-    let vOrder = 0;
-    for (const v of validVariants) {
-      let variantImageUrl = v.url || null;
-      if (v.file) {
-        const { blob, ext } = await convertToWebp(v.file, 0.82);
+
+    // Upload foto tiap warna sekali saja, dipakai di semua kombinasi ukurannya
+    const colorImageUrls = {};
+    for (const c of pendingColors) {
+      let url = c.url || null;
+      if (c.file) {
+        const { blob, ext } = await convertToWebp(c.file, 0.82);
         const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
         const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
         if (!upErr) {
           const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-          variantImageUrl = urlData.publicUrl;
+          url = urlData.publicUrl;
         }
       }
-      await sb.from('product_variants').insert({
-        product_id: productId,
-        color_name: v.color_name.trim(),
-        size_label: v.size_label && v.size_label.trim() ? v.size_label.trim() : null,
-        image_url: variantImageUrl,
-        price: parseInt(v.price),
-        original_price: v.original_price ? parseInt(v.original_price) : null,
-        is_available: v.is_available !== false,
-        sort_order: vOrder++
-      });
+      colorImageUrls[c._ck] = url;
+    }
+
+    const colors = pendingColors.length > 0
+      ? pendingColors.filter(c => c.color_name && c.color_name.trim()).map(c => ({ key: c._ck, name: c.color_name.trim(), image_url: colorImageUrls[c._ck] || null }))
+      : [{ key: '__nocolor__', name: null, image_url: null }];
+    const sizes = pendingSizes.length > 0
+      ? pendingSizes.filter(s => s.size_label && s.size_label.trim()).map(s => ({ key: s._sk, label: s.size_label.trim() }))
+      : [{ key: '__nosize__', label: null }];
+
+    let vOrder = 0;
+    const rowsToInsert = [];
+    for (const c of colors) {
+      for (const s of sizes) {
+        const cell = pendingGrid[`${c.key}|${s.key}`];
+        if (!cell || !cell.price) continue; // kosong = kombinasi ini sengaja tidak ditawarkan
+        rowsToInsert.push({
+          product_id: productId,
+          color_name: c.name,
+          size_label: s.label,
+          image_url: c.image_url,
+          price: parseInt(cell.price),
+          original_price: cell.original_price ? parseInt(cell.original_price) : null,
+          is_available: cell.is_available !== false,
+          sort_order: vOrder++
+        });
+      }
+    }
+    if (rowsToInsert.length > 0) {
+      await sb.from('product_variants').insert(rowsToInsert);
     }
   }
 
@@ -2584,51 +2626,116 @@ function removePhoto(idx) {
 }
 
 // ── VARIANT ADMIN ──
-let pendingVariants = []; // [{id, file, url, color_name, size_label, price, original_price, is_available}]
+// Warna & ukuran dikelola sebagai 2 daftar terpisah (pola Shopee), lalu digabungkan
+// otomatis jadi tabel kombinasi harga/stok. Baris yang benar-benar disimpan ke DB
+// tetap flat (1 baris = 1 kombinasi warna+ukuran), sama seperti sebelumnya.
+let pendingColors = []; // [{_ck, file, url, color_name}]
+let pendingSizes = [];  // [{_sk, size_label}]
+let pendingGrid = {};   // key `${colorKey}|${sizeKey}` -> {price, original_price, is_available}
 
-function addVariantRow() {
-  pendingVariants.push({ id: null, file: null, url: '', color_name: '', size_label: '', price: '', original_price: '', is_available: true });
+function makeVariantKey() { return Math.random().toString(36).slice(2); }
+
+function addVariantColorRow() {
+  pendingColors.push({ _ck: makeVariantKey(), file: null, url: '', color_name: '' });
   renderVariantAdminList();
 }
 
-function removeVariantRow(idx) {
-  if (pendingVariants[idx].file) URL.revokeObjectURL(pendingVariants[idx].url);
-  pendingVariants.splice(idx, 1);
+function removeVariantColorRow(idx) {
+  if (pendingColors[idx].file) URL.revokeObjectURL(pendingColors[idx].url);
+  pendingColors.splice(idx, 1);
   renderVariantAdminList();
 }
 
-function updateVariantField(idx, field, value) {
-  pendingVariants[idx][field] = value;
+function updateVariantColorField(idx, value) {
+  pendingColors[idx].color_name = value;
+  // Update label kolom di tabel kombinasi tanpa render ulang seluruh form (supaya fokus/kursor input tidak hilang)
+  const th = document.querySelector(`.variant-grid-table th[data-color-key="${pendingColors[idx]._ck}"]`);
+  if (th) th.textContent = value.trim() || `Warna ${idx+1}`;
 }
 
-function handleVariantPhotoSelect(idx, event) {
+function handleVariantColorPhotoSelect(idx, event) {
   const f = event.target.files[0];
   if (!f) return;
-  pendingVariants[idx].file = f;
-  pendingVariants[idx].url = URL.createObjectURL(f);
+  pendingColors[idx].file = f;
+  pendingColors[idx].url = URL.createObjectURL(f);
   renderVariantAdminList();
+}
+
+function addVariantSizeRow() {
+  pendingSizes.push({ _sk: makeVariantKey(), size_label: '' });
+  renderVariantAdminList();
+}
+
+function removeVariantSizeRow(idx) {
+  pendingSizes.splice(idx, 1);
+  renderVariantAdminList();
+}
+
+function updateVariantSizeField(idx, value) {
+  pendingSizes[idx].size_label = value;
+  const th = document.querySelector(`.variant-grid-table th[data-size-key="${pendingSizes[idx]._sk}"]`);
+  if (th) th.textContent = value.trim() || `Ukuran ${idx+1}`;
+}
+
+function updateVariantGridCell(colorKey, sizeKey, field, value) {
+  const key = `${colorKey}|${sizeKey}`;
+  if (!pendingGrid[key]) pendingGrid[key] = { price: '', original_price: '', is_available: true };
+  pendingGrid[key][field] = value;
 }
 
 function renderVariantAdminList() {
   const wrap = document.getElementById('variantAdminList');
-  if (pendingVariants.length === 0) {
-    wrap.innerHTML = '<p style="font-size:12px;color:var(--warm-gray)">Belum ada varian warna.</p>';
-    return;
-  }
-  wrap.innerHTML = pendingVariants.map((v, i) => `
-    <div class="variant-admin-row">
-      <div class="variant-admin-thumb" onclick="document.getElementById('variantPhotoInput${i}').click()">
-        ${v.url ? `<img src="${v.url}" alt="${v.color_name || ''}">` : '<span>+</span>'}
-        <input type="file" id="variantPhotoInput${i}" accept="image/*" style="display:none" onchange="handleVariantPhotoSelect(${i}, event)">
+  let html = '';
+
+  html += '<p class="variant-group-label">Warna</p>';
+  html += pendingColors.length === 0
+    ? '<p style="font-size:12px;color:var(--warm-gray)">Belum ada warna.</p>'
+    : pendingColors.map((c, i) => `
+      <div class="variant-admin-row">
+        <div class="variant-admin-thumb" onclick="document.getElementById('variantColorPhotoInput${i}').click()">
+          ${c.url ? `<img src="${c.url}" alt="${c.color_name || ''}">` : '<span>+</span>'}
+          <input type="file" id="variantColorPhotoInput${i}" accept="image/*" style="display:none" onchange="handleVariantColorPhotoSelect(${i}, event)">
+        </div>
+        <input class="form-input" placeholder="Nama warna" value="${c.color_name || ''}" oninput="updateVariantColorField(${i}, this.value)">
+        <button type="button" class="variant-admin-remove" onclick="removeVariantColorRow(${i})">×</button>
       </div>
-      <input class="form-input" placeholder="Nama warna" value="${v.color_name || ''}" oninput="updateVariantField(${i}, 'color_name', this.value)">
-      <input class="form-input variant-size-input" placeholder="Ukuran (opsional)" value="${v.size_label || ''}" oninput="updateVariantField(${i}, 'size_label', this.value)">
-      <input class="form-input" type="number" placeholder="Harga" value="${v.price || ''}" oninput="updateVariantField(${i}, 'price', this.value)">
-      <input class="form-input" type="number" placeholder="Harga dasar (opsional)" value="${v.original_price || ''}" oninput="updateVariantField(${i}, 'original_price', this.value)">
-      <label class="variant-admin-avail"><input type="checkbox" ${v.is_available !== false ? 'checked' : ''} onchange="updateVariantField(${i}, 'is_available', this.checked)"> Tersedia</label>
-      <button type="button" class="variant-admin-remove" onclick="removeVariantRow(${i})">×</button>
-    </div>
-  `).join('');
+    `).join('');
+  html += `<button type="button" class="btn-secondary" onclick="addVariantColorRow()" style="width:auto;display:inline-block;margin-top:8px;padding:8px 16px">+ Tambah Warna</button>`;
+
+  html += '<p class="variant-group-label" style="margin-top:20px">Ukuran</p>';
+  html += pendingSizes.length === 0
+    ? '<p style="font-size:12px;color:var(--warm-gray)">Belum ada ukuran.</p>'
+    : pendingSizes.map((s, i) => `
+      <div class="variant-admin-row">
+        <input class="form-input" placeholder="Ukuran (mis. 40, M, L)" value="${s.size_label || ''}" oninput="updateVariantSizeField(${i}, this.value)">
+        <button type="button" class="variant-admin-remove" onclick="removeVariantSizeRow(${i})">×</button>
+      </div>
+    `).join('');
+  html += `<button type="button" class="btn-secondary" onclick="addVariantSizeRow()" style="width:auto;display:inline-block;margin-top:8px;padding:8px 16px">+ Tambah Ukuran</button>`;
+
+  if (pendingColors.length > 0 || pendingSizes.length > 0) {
+    const colors = pendingColors.length > 0 ? pendingColors.map((c, i) => ({ key: c._ck, label: c.color_name || `Warna ${i+1}` })) : [{ key: '__nocolor__', label: '' }];
+    const sizes = pendingSizes.length > 0 ? pendingSizes.map((s, i) => ({ key: s._sk, label: s.size_label || `Ukuran ${i+1}` })) : [{ key: '__nosize__', label: 'Harga' }];
+
+    html += '<p class="variant-group-label" style="margin-top:20px">Harga & Stok per Kombinasi</p>';
+    html += '<div class="variant-grid-wrap"><table class="variant-grid-table">';
+    html += `<thead><tr><th></th>${sizes.map(s => `<th data-size-key="${s.key}">${s.label}</th>`).join('')}</tr></thead><tbody>`;
+    html += colors.map(c => {
+      const cells = sizes.map(s => {
+        const key = `${c.key}|${s.key}`;
+        const cell = pendingGrid[key] || { price: '', original_price: '', is_available: true };
+        return `<td>
+          <input class="form-input variant-grid-price" type="number" placeholder="Harga" value="${cell.price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','price',this.value)">
+          <input class="form-input variant-grid-price" type="number" placeholder="Coret (opsional)" value="${cell.original_price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','original_price',this.value)">
+          <label class="variant-admin-avail"><input type="checkbox" ${cell.is_available !== false ? 'checked' : ''} onchange="updateVariantGridCell('${c.key}','${s.key}','is_available',this.checked)"> Tersedia</label>
+        </td>`;
+      }).join('');
+      return `<tr><th data-color-key="${c.key}">${c.label}</th>${cells}</tr>`;
+    }).join('');
+    html += '</tbody></table></div>';
+  }
+
+  wrap.innerHTML = html;
 }
 
 function resetProductForm() {
@@ -2644,7 +2751,9 @@ function resetProductForm() {
   document.getElementById('pCancelEditBtn').style.display = 'none';
   pendingPhotos = [];
   renderPhotoPreview();
-  pendingVariants = [];
+  pendingColors = [];
+  pendingSizes = [];
+  pendingGrid = {};
   renderVariantAdminList();
 }
 
@@ -2676,10 +2785,36 @@ async function editProduct(id) {
   if (imgs) imgs.forEach(img => pendingPhotos.push({ file: null, url: img.image_url, id: img.id }));
   renderPhotoPreview();
 
-  // Load varian warna existing
-  pendingVariants = [];
+  // Load varian existing, rekonstruksi jadi 2 daftar (warna, ukuran) + grid harga/stok
+  pendingColors = [];
+  pendingSizes = [];
+  pendingGrid = {};
   const { data: vars } = await sb.from('product_variants').select('*').eq('product_id', id).order('sort_order', { ascending: true });
-  if (vars) vars.forEach(v => pendingVariants.push({ id: v.id, file: null, url: v.image_url || '', color_name: v.color_name, size_label: v.size_label || '', price: v.price, original_price: v.original_price || '', is_available: v.is_available }));
+  if (vars) {
+    const colorKeyByName = new Map();
+    const sizeKeyByLabel = new Map();
+    vars.forEach(v => {
+      let colorKey = '__nocolor__';
+      if (v.color_name) {
+        if (!colorKeyByName.has(v.color_name)) {
+          const ck = makeVariantKey();
+          colorKeyByName.set(v.color_name, ck);
+          pendingColors.push({ _ck: ck, file: null, url: v.image_url || '', color_name: v.color_name });
+        }
+        colorKey = colorKeyByName.get(v.color_name);
+      }
+      let sizeKey = '__nosize__';
+      if (v.size_label) {
+        if (!sizeKeyByLabel.has(v.size_label)) {
+          const sk = makeVariantKey();
+          sizeKeyByLabel.set(v.size_label, sk);
+          pendingSizes.push({ _sk: sk, size_label: v.size_label });
+        }
+        sizeKey = sizeKeyByLabel.get(v.size_label);
+      }
+      pendingGrid[`${colorKey}|${sizeKey}`] = { price: v.price, original_price: v.original_price || '', is_available: v.is_available };
+    });
+  }
   renderVariantAdminList();
 
   document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
