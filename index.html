@@ -1393,6 +1393,7 @@ let currentVariants = [];
 let colorGroups = [];
 let selectedColorIndex = null;
 let currentSizes = [];
+let isSizeOnlyVariant = false;
 let selectedVariant = null;
 let currentGalleryImages = [];
 let galleryIndex = 0;
@@ -1402,6 +1403,7 @@ function renderVariantSwatches(variants) {
   selectedVariant = null;
   selectedColorIndex = null;
   currentSizes = [];
+  isSizeOnlyVariant = false;
   const section = document.getElementById('variantSection');
   // Harga awal & foto utama selalu dari data produk (katalog) — foto/harga varian
   // baru menggantikannya setelah pembeli benar-benar menyelesaikan pilihan.
@@ -1423,8 +1425,8 @@ function renderVariantSwatches(variants) {
   });
 
   // Produk tanpa dimensi warna sama sekali (cuma ukuran) — lompat langsung ke pilihan ukuran
-  const isSizeOnly = colorGroups.length === 1 && !colorGroups[0].color_name;
-  if (isSizeOnly) {
+  isSizeOnlyVariant = colorGroups.length === 1 && !colorGroups[0].color_name;
+  if (isSizeOnlyVariant) {
     document.getElementById('colorLabel').style.display = 'none';
     document.getElementById('variantSwatches').innerHTML = '';
     selectedColorIndex = 0;
@@ -1510,7 +1512,7 @@ function selectSizeByIndex(i) {
 // setelah pilih warna kalau warna itu tidak punya dimensi ukuran).
 function applyVariant(v) {
   selectedVariant = v;
-  renderColorButtons();
+  if (!isSizeOnlyVariant) renderColorButtons();
   document.getElementById('detailPrice').innerHTML = priceHtml(v.price, v.original_price);
   if (v.image_url) {
     const overrideEl = document.getElementById('galleryMain');
