@@ -2568,7 +2568,16 @@ async function addProduct() {
       }
     }
     if (rowsToInsert.length > 0) {
-      await sb.from('product_variants').insert(rowsToInsert);
+      const { error: variantErr } = await sb.from('product_variants').insert(rowsToInsert);
+      if (variantErr) {
+        console.error(variantErr);
+        showToast('Produk tersimpan, tapi varian GAGAL disimpan: ' + variantErr.message);
+        btn.disabled = false;
+        btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
+        loadAdminProducts();
+        loadProducts();
+        return;
+      }
     }
   }
 
