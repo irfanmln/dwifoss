@@ -2666,9 +2666,12 @@ function removeVariantColorRow(idx) {
 
 function updateVariantColorField(idx, value) {
   pendingColors[idx].color_name = value;
-  // Update label kolom di tabel kombinasi tanpa render ulang seluruh form (supaya fokus/kursor input tidak hilang)
-  const th = document.querySelector(`.variant-grid-table th[data-color-key="${pendingColors[idx]._ck}"]`);
-  if (th) th.textContent = value.trim() || `Warna ${idx+1}`;
+  // Update label baris di semua tabel kombinasi (warna bisa muncul di lebih dari 1
+  // tabel kalau ukurannya dipecah jadi beberapa tabel) tanpa render ulang seluruh
+  // form, supaya fokus/kursor input tidak hilang.
+  document.querySelectorAll(`.variant-grid-table th[data-color-key="${pendingColors[idx]._ck}"]`).forEach(th => {
+    th.textContent = value.trim() || `Warna ${idx+1}`;
+  });
 }
 
 function handleVariantColorPhotoSelect(idx, event) {
@@ -2735,22 +2738,32 @@ function renderVariantAdminList() {
     const colors = pendingColors.length > 0 ? pendingColors.map((c, i) => ({ key: c._ck, label: c.color_name || `Warna ${i+1}` })) : [{ key: '__nocolor__', label: '' }];
     const sizes = pendingSizes.length > 0 ? pendingSizes.map((s, i) => ({ key: s._sk, label: s.size_label || `Ukuran ${i+1}` })) : [{ key: '__nosize__', label: 'Harga' }];
 
+    // Maks. 2 kolom ukuran per tabel supaya tidak melebar terus ke kanan —
+    // ukuran selanjutnya lanjut di tabel baru di bawahnya.
+    const SIZE_COLS_PER_TABLE = 2;
+    const sizeChunks = [];
+    for (let i = 0; i < sizes.length; i += SIZE_COLS_PER_TABLE) sizeChunks.push(sizes.slice(i, i + SIZE_COLS_PER_TABLE));
+
     html += '<p class="variant-group-label" style="margin-top:20px">Harga & Stok per Kombinasi</p>';
-    html += '<div class="variant-grid-wrap"><table class="variant-grid-table">';
-    html += `<thead><tr><th></th>${sizes.map(s => `<th data-size-key="${s.key}">${s.label}</th>`).join('')}</tr></thead><tbody>`;
-    html += colors.map(c => {
-      const cells = sizes.map(s => {
-        const key = `${c.key}|${s.key}`;
-        const cell = pendingGrid[key] || { price: '', original_price: '', is_available: true };
-        return `<td>
-          <input class="form-input variant-grid-price" type="number" placeholder="Harga" value="${cell.price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','price',this.value)">
-          <input class="form-input variant-grid-price" type="number" placeholder="Coret (opsional)" value="${cell.original_price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','original_price',this.value)">
-          <label class="variant-admin-avail"><input type="checkbox" ${cell.is_available !== false ? 'checked' : ''} onchange="updateVariantGridCell('${c.key}','${s.key}','is_available',this.checked)"> Tersedia</label>
-        </td>`;
-      }).join('');
-      return `<tr><th data-color-key="${c.key}">${c.label}</th>${cells}</tr>`;
-    }).join('');
-    html += '</tbody></table></div>';
+    html += sizeChunks.map(chunk => `
+      <div class="variant-grid-wrap">
+        <table class="variant-grid-table">
+          <thead><tr><th></th>${chunk.map(s => `<th data-size-key="${s.key}">${s.label}</th>`).join('')}</tr></thead>
+          <tbody>${colors.map(c => {
+            const cells = chunk.map(s => {
+              const key = `${c.key}|${s.key}`;
+              const cell = pendingGrid[key] || { price: '', original_price: '', is_available: true };
+              return `<td>
+                <input class="form-input variant-grid-price" type="number" placeholder="Harga" value="${cell.price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','price',this.value)">
+                <input class="form-input variant-grid-price" type="number" placeholder="Coret (opsional)" value="${cell.original_price || ''}" oninput="updateVariantGridCell('${c.key}','${s.key}','original_price',this.value)">
+                <label class="variant-admin-avail"><input type="checkbox" ${cell.is_available !== false ? 'checked' : ''} onchange="updateVariantGridCell('${c.key}','${s.key}','is_available',this.checked)"> Tersedia</label>
+              </td>`;
+            }).join('');
+            return `<tr><th data-color-key="${c.key}">${c.label}</th>${cells}</tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>
+    `).join('');
   }
 
   wrap.innerHTML = html;
