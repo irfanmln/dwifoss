@@ -2473,6 +2473,12 @@ async function addProduct() {
   if (!brand || !name || !price) { showToast('Brand, nama, dan harga wajib diisi'); return; }
   if (pendingPhotos.length === 0) { showToast('Minimal 1 foto produk wajib diupload'); return; }
   if (original_price && original_price <= price) { showToast('Harga dasar harus lebih besar dari harga jual'); return; }
+  if (pendingColors.length > 0 || pendingSizes.length > 0) {
+    const colorKeys = pendingColors.length > 0 ? pendingColors.filter(c => c.color_name && c.color_name.trim()).map(c => c._ck) : ['__nocolor__'];
+    const sizeKeys = pendingSizes.length > 0 ? pendingSizes.filter(s => s.size_label && s.size_label.trim()).map(s => s._sk) : ['__nosize__'];
+    const hasAnyPrice = colorKeys.some(ck => sizeKeys.some(sk => pendingGrid[`${ck}|${sk}`] && pendingGrid[`${ck}|${sk}`].price));
+    if (!hasAnyPrice) { showToast('Warna/ukuran sudah ditambahkan tapi belum ada harga diisi di tabel "Harga & Stok per Kombinasi"'); return; }
+  }
 
   const btn = document.getElementById('pSubmitBtn');
   btn.disabled = true;
