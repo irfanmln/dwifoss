@@ -812,8 +812,11 @@
       </div>
 
       <!-- Daftar produk -->
-      <div class="form-group">
-        <input class="form-input" id="adminProductSearch" placeholder="Cari nama atau brand produk..." oninput="renderAdminProductsTable()">
+      <div class="form-group" style="display:flex;gap:10px;flex-wrap:wrap">
+        <input class="form-input" id="adminProductSearch" placeholder="Cari nama atau brand produk..." oninput="renderAdminProductsTable()" style="flex:2;min-width:200px;margin-bottom:0">
+        <select class="form-input" id="adminCategoryFilter" onchange="renderAdminProductsTable()" style="flex:1;min-width:160px;margin-bottom:0">
+          <option value="">-- Semua Kategori --</option>
+        </select>
       </div>
       <div class="admin-table-wrap">
         <table class="admin-table">
@@ -1968,6 +1971,16 @@ function renderNavCategories() {
     if ([...parentSelectEl.options].some(o => o.value === currentVal)) parentSelectEl.value = currentVal;
   }
 
+  const adminFilterEl = document.getElementById('adminCategoryFilter');
+  if (adminFilterEl) {
+    const currentVal = adminFilterEl.value;
+    adminFilterEl.innerHTML = `<option value="">-- Semua Kategori --</option>` +
+      categoryTree.map(c => `<option value="${c.id}">${c.name}</option>` +
+        c.children.map(ch => `<option value="${ch.id}">&nbsp;&nbsp;${ch.name}</option>`).join('')
+      ).join('');
+    if ([...adminFilterEl.options].some(o => o.value === currentVal)) adminFilterEl.value = currentVal;
+  }
+
   renderFooterShopBy();
 }
 
@@ -2188,13 +2201,23 @@ async function loadAdminProducts() {
 function renderAdminProductsTable() {
   const tbody = document.getElementById('productsTableBody');
   const q = (document.getElementById('adminProductSearch')?.value || '').trim().toLowerCase();
-  const products = q
-    ? allProducts.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.brand && p.brand.toLowerCase().includes(q)))
-    : allProducts;
+  const categoryFilter = document.getElementById('adminCategoryFilter')?.value || '';
 
-  if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
+  let products = allProducts;
+  if (categoryFilter) {
+    const ids = categoryIdsForFilter(categoryFilter);
+    products = products.filter(p => ids.includes(p.category_id));
+  }
+  if (q) {
+    products = products.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.brand && p.brand.toLowerCase().includes(q)));
+  }
 
-  const canDrag = !q;
+  if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q || categoryFilter ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
+
+  // Urutan drag cuma bisa dipercaya kalau daftar tidak difilter (baik cari maupun kategori) —
+  // kalau difilter, susunan yang terlihat bukan urutan asli lengkap, jadi drag dimatikan
+  // supaya tidak salah menyimpan urutan global.
+  const canDrag = !q && !categoryFilter;
   tbody.innerHTML = products.map(p => `
     <tr data-product-id="${p.id}">
       <td>${canDrag ? `<span class="drag-handle" title="Geser untuk atur urutan tampil di toko">⠿</span>` : ''}</td>
