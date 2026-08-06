@@ -1616,6 +1616,7 @@ function renderGallery(images, altText) {
   `).join('');
   updateGalleryTrackPosition();
   initGallerySwipe();
+  initGalleryZoom();
 
   // Sembunyikan thumbs kalau hanya 1 foto
   if (images.length <= 1) {
@@ -1663,6 +1664,17 @@ function gallerySlide(delta) {
   const newIndex = galleryIndex + delta;
   if (newIndex < 0 || newIndex >= currentGalleryImages.length) return;
   selectGalleryImg(newIndex);
+}
+
+// Klik foto utama (slide biasa atau override varian) untuk zoom
+function initGalleryZoom() {
+  const wrap = document.getElementById('galleryMainWrap');
+  if (!wrap || wrap.dataset.zoomInit) return;
+  wrap.dataset.zoomInit = '1';
+  wrap.style.cursor = 'zoom-in';
+  wrap.addEventListener('click', e => {
+    if (e.target.tagName === 'IMG' && e.target.src) openImgLightbox(e.target.src);
+  });
 }
 
 let galleryTouchStartX = null;
