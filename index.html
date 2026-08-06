@@ -334,6 +334,11 @@
   .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--espresso); color: var(--ivory); padding: 12px 24px; font-size: 13px; letter-spacing: 1px; z-index: 999; transition: transform 0.3s ease; white-space: nowrap; }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
+  /* IMAGE LIGHTBOX (zoom foto produk) */
+  .img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 998; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+  .img-lightbox.open { display: flex; }
+  .img-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+
   /* SEARCH */
   .search-wrap { position: relative; padding: 24px 0 0; }
   .search-input { width: 100%; padding: 13px 44px 13px 16px; border: 1px solid var(--stone); background: var(--white); font-family: var(--sans); font-size: 14px; color: var(--espresso); outline: none; transition: border-color 0.2s; }
@@ -461,6 +466,10 @@
 </div>
 
 <div class="toast" id="toast"></div>
+
+<div class="img-lightbox" id="imgLightbox" onclick="closeImgLightbox()">
+  <img id="imgLightboxImg" src="" alt="">
+</div>
 
 <!-- ════ PAGE: SHOP ════ -->
 <div class="page active" id="page-shop">
@@ -645,7 +654,7 @@
     <div class="success-bank-highlight">
       <p class="label">Order Number</p>
       <p id="successOrderNo" style="font-size:18px;font-weight:500;letter-spacing:3px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
-      <p class="label">Order Total</p>
+      <p class="label">Order Sub Total</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
         Click the button below to confirm your order via WhatsApp — we'll send the payment details & shipping cost there.
@@ -657,11 +666,11 @@
     <div class="success-section">
       <p class="success-section-title">Items Ordered</p>
       <div id="successItems"></div>
+      <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:500;border-top:1px solid var(--stone)">
+        <span>Sub Total</span><span id="successTotal2"></span>
+      </div>
       <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:13px;color:var(--warm-gray)">
         <span>Shipping Cost</span><span>Confirmed via WA</span>
-      </div>
-      <div style="display:flex;justify-content:space-between;padding:12px 0;font-size:15px;font-weight:500;border-top:1px solid var(--stone)">
-        <span>Total</span><span id="successTotal2"></span>
       </div>
     </div>
 
@@ -1157,6 +1166,16 @@ function showPage(name) {
 }
 
 // ── TOAST ──
+// Zoom foto produk (klik gambar untuk lihat versi besar)
+function openImgLightbox(url) {
+  if (!url) return;
+  document.getElementById('imgLightboxImg').src = url;
+  document.getElementById('imgLightbox').classList.add('open');
+}
+function closeImgLightbox() {
+  document.getElementById('imgLightbox').classList.remove('open');
+}
+
 function showToast(msg) {
   const t = document.getElementById('toast');
   t.textContent = msg;
@@ -1854,7 +1873,7 @@ async function placeOrder() {
   document.getElementById('successItems').innerHTML = cart.map(i => `
     <div class="success-item">
       <div class="success-item-img">${i.cover_url
-        ? `<img src="${i.cover_url}" style="width:56px;height:56px;object-fit:cover">`
+        ? `<img src="${i.cover_url}" style="width:56px;height:56px;object-fit:cover;cursor:zoom-in" onclick="openImgLightbox('${i.cover_url}')">`
         : '👜'}</div>
       <div class="success-item-info">
         <p class="success-item-brand">${i.brand}</p>
