@@ -1099,6 +1099,13 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoam5rY3ZvempkbHNjdXFmcXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMzMyMDYsImV4cCI6MjA5NzkwOTIwNn0.N0OQCgYDtw2iOWZk3FbyqAnXgpv12pI8H3titSoWZg0'
 );
 
+// Paksa cek/refresh sesi login tiap kali tab dibuka kembali (misal admin buka panel
+// di HP lalu layar terkunci/pindah app cukup lama, token bisa kedaluwarsa saat kembali
+// dan Supabase auto-refresh timer-nya tidak jalan selagi tab di-background)
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') sb.auth.getSession();
+});
+
 // ── STATE ──
 let cart = JSON.parse(localStorage.getItem('dwifoss_cart') || '[]');
 let currentProduct = null;
@@ -1155,6 +1162,17 @@ function showToast(msg) {
   t.textContent = msg;
   t.classList.add('show');
   setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+// Kalau errornya penolakan RLS (kode 42501) -> hampir selalu berarti sesi login
+// admin sudah kedaluwarsa, kasih pesan yang jelas daripada error mentah Supabase
+function showDbError(error, fallbackMsg) {
+  if (error && error.code === '42501') {
+    showToast('Sesi login sudah habis, silakan logout lalu login ulang');
+  } else {
+    showToast(fallbackMsg);
+  }
+  console.error(error);
 }
 
 // ── SKELETON LOADING ──
@@ -2117,8 +2135,7 @@ async function addCategory() {
 
   if (error) {
     if (error.code === '23505') showToast('Kategori dengan nama itu sudah ada di induk yang sama');
-    else showToast(editId ? 'Gagal mengubah kategori' : 'Gagal menambah kategori');
-    console.error(error);
+    else showDbError(error, editId ? 'Gagal mengubah kategori' : 'Gagal menambah kategori');
     return;
   }
 
@@ -2131,7 +2148,7 @@ async function addCategory() {
 async function deleteCategory(id) {
   if (!confirm('Hapus kategori ini? Produk dengan kategori ini tidak akan terhapus, hanya labelnya yang lepas.')) return;
   const { error } = await sb.from('categories').delete().eq('id', id);
-  if (error) { showToast('Gagal menghapus kategori'); return; }
+  if (error) { showDbError(error, 'Gagal menghapus kategori'); return; }
   showToast('Kategori dihapus ✓');
   loadAdminCategories();
   loadCategories();
@@ -2245,7 +2262,7 @@ function toggleOrderDetail(id) {
 
 async function updateOrderStatus(id, status) {
   const { error } = await sb.from('orders').update({ status }).eq('id', id);
-  if (error) { showToast('Gagal update status'); return; }
+  if (error) { showDbError(error, 'Gagal update status'); return; }
   showToast('Status diperbarui ✓');
   loadAdminOrders();
 }
@@ -2458,7 +2475,7 @@ async function saveSiteSettings() {
 
   btns.forEach(b => { b.disabled = false; b.textContent = 'Simpan Pengaturan'; });
 
-  if (error) { showToast('Gagal menyimpan pengaturan'); console.error(error); return; }
+  if (error) { showDbError(error, 'Gagal menyimpan pengaturan'); return; }
 
   showToast('Pengaturan disimpan ✓');
   loadSiteSettings();
@@ -2485,7 +2502,7 @@ async function addBanner() {
   const { blob, ext } = await convertToWebp(pendingBannerFile.file, 0.82);
   const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
   const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
-  if (upErr) { showToast('Gagal upload banner'); console.error(upErr); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
+  if (upErr) { showDbError(upErr, 'Gagal upload banner'); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
   const url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
 
   const nextOrder = banners.length > 0 ? Math.max(...banners.map(b => b.sort_order)) + 1 : 0;
@@ -2494,7 +2511,7 @@ async function addBanner() {
   btn.disabled = false;
   btn.textContent = 'Tambah Banner';
 
-  if (error) { showToast('Gagal menambah banner'); console.error(error); return; }
+  if (error) { showDbError(error, 'Gagal menambah banner'); return; }
 
   showToast('Banner ditambahkan ✓');
   pendingBannerFile = null;
@@ -2530,7 +2547,7 @@ function renderAdminBannersTable(list) {
 
 async function moveBanner(id, direction) {
   const { data, error } = await sb.from('banners').select('*').order('sort_order', { ascending: true });
-  if (error) { showToast('Gagal memuat urutan banner'); return; }
+  if (error) { showDbError(error, 'Gagal memuat urutan banner'); return; }
 
   const idx = data.findIndex(b => b.id === id);
   const swapIdx = idx + direction;
@@ -2547,7 +2564,7 @@ async function moveBanner(id, direction) {
 async function deleteBanner(id) {
   if (!confirm('Hapus banner ini?')) return;
   const { error } = await sb.from('banners').delete().eq('id', id);
-  if (error) { showToast('Gagal menghapus banner'); return; }
+  if (error) { showDbError(error, 'Gagal menghapus banner'); return; }
   showToast('Banner dihapus ✓');
   loadAdminBanners();
   loadBanners();
@@ -2593,7 +2610,7 @@ async function addProduct() {
     if (data) productId = data.id;
   }
 
-  if (dbError) { showToast('Gagal menyimpan produk'); console.error(dbError); btn.disabled = false; btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk'; return; }
+  if (dbError) { showDbError(dbError, 'Gagal menyimpan produk'); btn.disabled = false; btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk'; return; }
 
   // Upload foto baru (dari pendingPhotos) ke product_images
   if (pendingPhotos.length > 0) {
@@ -2949,7 +2966,7 @@ function cancelEditProduct() { resetProductForm(); }
 
 async function toggleProduct(id, currentActive) {
   const { error } = await sb.from('products').update({ is_active: !currentActive }).eq('id', id);
-  if (error) { showToast('Gagal mengubah status'); return; }
+  if (error) { showDbError(error, 'Gagal mengubah status'); return; }
   showToast('Status produk diperbarui ✓');
   loadAdminProducts();
   loadProducts();
@@ -2958,7 +2975,7 @@ async function toggleProduct(id, currentActive) {
 async function deleteProduct(id) {
   if (!confirm('Hapus produk ini?')) return;
   const { error } = await sb.from('products').delete().eq('id', id);
-  if (error) { showToast('Gagal menghapus produk'); return; }
+  if (error) { showDbError(error, 'Gagal menghapus produk'); return; }
   showToast('Produk dihapus ✓');
   loadAdminProducts();
   loadProducts();
