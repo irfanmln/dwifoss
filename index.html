@@ -335,9 +335,25 @@
   .toast.show { transform: translateX(-50%) translateY(0); }
 
   /* IMAGE LIGHTBOX (zoom foto produk) */
-  .img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 998; align-items: center; justify-content: center; padding: 24px; cursor: zoom-out; }
+  .img-lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 998; flex-direction: column; }
   .img-lightbox.open { display: flex; }
-  .img-lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; }
+  .lightbox-close { position: absolute; top: 16px; right: 16px; background: rgba(255,255,255,0.15); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; }
+  .lightbox-zoom-controls { position: absolute; top: 16px; left: 16px; display: flex; flex-direction: column; gap: 8px; z-index: 2; }
+  .lightbox-zoom-controls button { background: rgba(255,255,255,0.15); border: none; color: white; width: 40px; height: 40px; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+  .lightbox-nav { position: absolute; top: 50%; transform: translateY(-50%); background: rgba(255,255,255,0.15); border: none; color: white; width: 44px; height: 44px; border-radius: 50%; cursor: pointer; z-index: 2; display: flex; align-items: center; justify-content: center; }
+  .lightbox-prev { left: 16px; }
+  .lightbox-next { right: 16px; }
+  .lightbox-img-wrap { flex: 1; overflow: auto; display: flex; align-items: center; justify-content: center; padding: 64px 64px 12px; }
+  .lightbox-img-wrap img { max-width: 100%; max-height: 100%; object-fit: contain; transition: transform 0.2s ease; }
+  .lightbox-thumbs { display: none; gap: 8px; padding: 12px 16px; overflow-x: auto; justify-content: center; }
+  .lightbox-thumbs img { width: 52px; height: 52px; object-fit: cover; cursor: pointer; opacity: 0.55; border: 2px solid transparent; flex-shrink: 0; }
+  .lightbox-thumbs img.active { opacity: 1; border-color: white; }
+  @media (max-width: 600px) {
+    .lightbox-img-wrap { padding: 56px 16px 8px; }
+    .lightbox-nav { width: 36px; height: 36px; }
+    .lightbox-prev { left: 4px; }
+    .lightbox-next { right: 4px; }
+  }
 
   /* SEARCH */
   .search-wrap { position: relative; padding: 24px 0 0; }
@@ -467,8 +483,28 @@
 
 <div class="toast" id="toast"></div>
 
-<div class="img-lightbox" id="imgLightbox" onclick="closeImgLightbox()">
-  <img id="imgLightboxImg" src="" alt="">
+<div class="img-lightbox" id="imgLightbox">
+  <button class="lightbox-close" onclick="closeImgLightbox()" aria-label="Close">
+    <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <div class="lightbox-zoom-controls">
+    <button onclick="lightboxZoom(1)" aria-label="Zoom in">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+    <button onclick="lightboxZoom(-1)" aria-label="Zoom out">
+      <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+    </button>
+  </div>
+  <button class="lightbox-nav lightbox-prev" onclick="lightboxNav(-1)" aria-label="Previous photo">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button class="lightbox-nav lightbox-next" onclick="lightboxNav(1)" aria-label="Next photo">
+    <svg width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
+  <div class="lightbox-img-wrap" id="lightboxImgWrap">
+    <img id="imgLightboxImg" src="" alt="">
+  </div>
+  <div class="lightbox-thumbs" id="lightboxThumbs"></div>
 </div>
 
 <!-- ════ PAGE: SHOP ════ -->
@@ -1167,13 +1203,80 @@ function showPage(name) {
 
 // ── TOAST ──
 // Zoom foto produk (klik gambar untuk lihat versi besar)
-function openImgLightbox(url) {
+let lightboxImages = [];
+let lightboxIndex = 0;
+let lightboxZoomLevel = 1;
+
+function openImgLightbox(url, images, index) {
   if (!url) return;
-  document.getElementById('imgLightboxImg').src = url;
+  lightboxImages = (images && images.length) ? images : [url];
+  lightboxIndex = Number.isInteger(index) ? index : Math.max(0, lightboxImages.indexOf(url));
+  lightboxZoomLevel = 1;
+  renderLightbox();
   document.getElementById('imgLightbox').classList.add('open');
+  initLightboxSwipe();
 }
+
+function renderLightbox() {
+  const img = document.getElementById('imgLightboxImg');
+  img.src = lightboxImages[lightboxIndex];
+  img.style.transform = 'scale(1)';
+  lightboxZoomLevel = 1;
+
+  const multi = lightboxImages.length > 1;
+  document.querySelector('.lightbox-prev').style.display = multi ? 'flex' : 'none';
+  document.querySelector('.lightbox-next').style.display = multi ? 'flex' : 'none';
+
+  const thumbsEl = document.getElementById('lightboxThumbs');
+  if (multi) {
+    thumbsEl.style.display = 'flex';
+    thumbsEl.innerHTML = lightboxImages.map((u, i) => `<img src="${u}" class="${i === lightboxIndex ? 'active' : ''}" onclick="lightboxGoTo(${i})">`).join('');
+  } else {
+    thumbsEl.style.display = 'none';
+    thumbsEl.innerHTML = '';
+  }
+}
+
+function lightboxGoTo(i) {
+  lightboxIndex = i;
+  renderLightbox();
+}
+
+function lightboxNav(delta) {
+  if (lightboxImages.length <= 1) return;
+  lightboxIndex = (lightboxIndex + delta + lightboxImages.length) % lightboxImages.length;
+  renderLightbox();
+}
+
+function lightboxZoom(delta) {
+  lightboxZoomLevel = Math.min(3, Math.max(1, lightboxZoomLevel + delta * 0.5));
+  document.getElementById('imgLightboxImg').style.transform = `scale(${lightboxZoomLevel})`;
+}
+
 function closeImgLightbox() {
   document.getElementById('imgLightbox').classList.remove('open');
+}
+
+document.addEventListener('keydown', e => {
+  if (!document.getElementById('imgLightbox').classList.contains('open')) return;
+  if (e.key === 'Escape') closeImgLightbox();
+  if (e.key === 'ArrowLeft') lightboxNav(-1);
+  if (e.key === 'ArrowRight') lightboxNav(1);
+});
+
+let lightboxTouchStartX = null;
+function initLightboxSwipe() {
+  const el = document.getElementById('lightboxImgWrap');
+  if (!el || el.dataset.swipeInit) return;
+  el.dataset.swipeInit = '1';
+  el.addEventListener('touchstart', e => { lightboxTouchStartX = e.touches[0].clientX; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (lightboxTouchStartX === null || lightboxZoomLevel > 1) return;
+    const dx = e.changedTouches[0].clientX - lightboxTouchStartX;
+    lightboxTouchStartX = null;
+    if (Math.abs(dx) < 40) return;
+    lightboxNav(dx < 0 ? 1 : -1);
+  }, { passive: true });
 }
 
 function showToast(msg) {
@@ -1673,7 +1776,13 @@ function initGalleryZoom() {
   wrap.dataset.zoomInit = '1';
   wrap.style.cursor = 'zoom-in';
   wrap.addEventListener('click', e => {
-    if (e.target.tagName === 'IMG' && e.target.src) openImgLightbox(e.target.src);
+    if (e.target.tagName !== 'IMG' || !e.target.src) return;
+    const overrideEl = document.getElementById('galleryMain');
+    if (overrideEl.style.display !== 'none' && e.target === overrideEl) {
+      openImgLightbox(overrideEl.src, [overrideEl.src], 0);
+    } else {
+      openImgLightbox(e.target.src, currentGalleryImages, galleryIndex);
+    }
   });
 }
 
