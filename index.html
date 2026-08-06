@@ -601,19 +601,29 @@
         <label class="form-label">Full Address *</label>
         <input class="form-input" id="fieldAddress" type="text" placeholder="Street name, house number">
       </div>
+      <div class="form-group">
+        <label class="form-label">Province *</label>
+        <select class="form-input" id="fieldProvince" onchange="onWilayahProvinceChange()">
+          <option value="">-- Select Province --</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">City / Regency *</label>
+        <select class="form-input" id="fieldCity" onchange="onWilayahRegencyChange()" disabled>
+          <option value="">-- Select Province First --</option>
+        </select>
+      </div>
       <div class="form-row">
         <div class="form-group">
-          <label class="form-label">City *</label>
-          <input class="form-input" id="fieldCity" type="text" placeholder="Jakarta">
+          <label class="form-label">District *</label>
+          <select class="form-input" id="fieldDistrict" disabled>
+            <option value="">-- Select City First --</option>
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label">Postal Code</label>
           <input class="form-input" id="fieldZip" type="text" placeholder="12345">
         </div>
-      </div>
-      <div class="form-group">
-        <label class="form-label">Province *</label>
-        <input class="form-input" id="fieldProvince" type="text" placeholder="DKI Jakarta">
       </div>
     </div>
     <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Create Order</button>
@@ -1121,7 +1131,7 @@ function showPage(name) {
   document.getElementById('page-' + name).classList.add('active');
   window.scrollTo(0, 0);
   if (name === 'cart') renderCart();
-  if (name === 'checkout') renderCheckoutSummary();
+  if (name === 'checkout') { renderCheckoutSummary(); populateWilayahProvinces(); }
 
   // Keluar dari halaman admin ke halaman lain: sinkronkan URL balik ke root
   // supaya refresh browser tidak salah nyangkut ke routing /admin
@@ -1716,17 +1726,78 @@ function renderCheckoutSummary() {
   `).join('') + `<div class="order-mini-total"><span>Total</span><span>${formatRp(subtotal)}</span></div>`;
 }
 
+// ── WILAYAH (provinsi/kabupaten/kecamatan, dropdown berjenjang dari data statis lokal) ──
+let wilayahProvinces = null;
+
+async function populateWilayahProvinces() {
+  const sel = document.getElementById('fieldProvince');
+  if (!sel || sel.options.length > 1) return; // sudah pernah dimuat
+  if (!wilayahProvinces) {
+    const res = await fetch('/wilayah/provinsi.json');
+    wilayahProvinces = await res.json();
+  }
+  sel.innerHTML = '<option value="">-- Select Province --</option>' +
+    Object.entries(wilayahProvinces).map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
+}
+
+async function onWilayahProvinceChange() {
+  const provCode = document.getElementById('fieldProvince').value;
+  const citySel = document.getElementById('fieldCity');
+  const distSel = document.getElementById('fieldDistrict');
+
+  distSel.innerHTML = '<option value="">-- Select City First --</option>';
+  distSel.disabled = true;
+
+  if (!provCode) {
+    citySel.innerHTML = '<option value="">-- Select Province First --</option>';
+    citySel.disabled = true;
+    return;
+  }
+
+  citySel.disabled = true;
+  citySel.innerHTML = '<option value="">Memuat...</option>';
+  const res = await fetch(`/wilayah/kabupaten_kota/kab-${provCode}.json`);
+  const regencies = await res.json();
+  citySel.innerHTML = '<option value="">-- Select City/Regency --</option>' +
+    Object.entries(regencies).map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
+  citySel.disabled = false;
+}
+
+async function onWilayahRegencyChange() {
+  const provCode = document.getElementById('fieldProvince').value;
+  const regCode = document.getElementById('fieldCity').value;
+  const distSel = document.getElementById('fieldDistrict');
+
+  if (!regCode) {
+    distSel.innerHTML = '<option value="">-- Select City First --</option>';
+    distSel.disabled = true;
+    return;
+  }
+
+  distSel.disabled = true;
+  distSel.innerHTML = '<option value="">Memuat...</option>';
+  const res = await fetch(`/wilayah/kecamatan/kec-${provCode}-${regCode}.json`);
+  const districts = await res.json();
+  distSel.innerHTML = '<option value="">-- Select District --</option>' +
+    Object.entries(districts).map(([code, name]) => `<option value="${code}">${name}</option>`).join('');
+  distSel.disabled = false;
+}
+
 // ── PLACE ORDER ──
 async function placeOrder() {
   const name = document.getElementById('fieldName').value.trim();
   const phone = document.getElementById('fieldPhone').value.trim();
   const email = document.getElementById('fieldEmail').value.trim();
   const address = document.getElementById('fieldAddress').value.trim();
-  const city = document.getElementById('fieldCity').value.trim();
+  const citySel = document.getElementById('fieldCity');
+  const provinceSel = document.getElementById('fieldProvince');
+  const districtSel = document.getElementById('fieldDistrict');
+  const city = citySel.value ? citySel.selectedOptions[0].text : '';
+  const province = provinceSel.value ? provinceSel.selectedOptions[0].text : '';
+  const district = districtSel.value ? districtSel.selectedOptions[0].text : '';
   const zip = document.getElementById('fieldZip').value.trim();
-  const province = document.getElementById('fieldProvince').value.trim();
 
-  if (!name || !phone || !address || !city || !province) {
+  if (!name || !phone || !address || !city || !province || !district) {
     showToast('Please fill in all required fields (*)');
     return;
   }
@@ -1742,7 +1813,7 @@ async function placeOrder() {
     customer_name: name,
     customer_phone: phone,
     customer_email: email || null,
-    address, city, province,
+    address, city, province, district,
     zip_code: zip || null,
     items: cart,
     total: subtotal,
@@ -1778,7 +1849,7 @@ async function placeOrder() {
 
   // Alamat
   document.getElementById('successAddress').innerHTML =
-    `<strong>${name}</strong><br>${address}<br>${city}, ${province}${zip ? ' ' + zip : ''}<br>Indonesia`;
+    `<strong>${name}</strong><br>${address}<br>${district}, ${city}, ${province}${zip ? ' ' + zip : ''}<br>Indonesia`;
 
   // Kontak
   document.getElementById('successContact').innerHTML =
@@ -1786,7 +1857,7 @@ async function placeOrder() {
 
   // Tombol konfirmasi WhatsApp
   const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${variantText(i) ? ' ('+variantText(i)+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
-  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}`;
+  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}, ${district}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}`;
   document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
   const orderCart = [...cart];
@@ -2154,7 +2225,7 @@ function renderAdminOrdersTable() {
           <td colspan="5" style="padding:0 12px">
             <div class="order-detail-box" id="detail-${o.id}">
               <strong>Alamat Pengiriman:</strong><br>
-              ${o.address}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
+              ${o.address}${o.district ? ', '+o.district : ''}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
               <strong>Produk yang Dipesan:</strong>
               <div class="order-items-list">${itemsHtml}</div>
               <strong style="display:block;margin-top:8px">Riwayat Pembelian Pelanggan Ini:</strong>
