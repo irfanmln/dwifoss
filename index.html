@@ -3023,6 +3023,8 @@ function renderVariantAdminList() {
   wrap.innerHTML = html;
 }
 
+let adminScrollBeforeEdit = null;
+
 function resetProductForm() {
   ['pBrand','pName','pPrice','pOriginalPrice','pBadge'].forEach(id => document.getElementById(id).value = '');
   document.getElementById('pDesc').value = '';
@@ -3040,6 +3042,11 @@ function resetProductForm() {
   pendingSizes = [];
   pendingGrid = {};
   renderVariantAdminList();
+
+  if (adminScrollBeforeEdit !== null) {
+    window.scrollTo({ top: adminScrollBeforeEdit, behavior: 'smooth' });
+    adminScrollBeforeEdit = null;
+  }
 }
 
 async function editProduct(id) {
@@ -3102,6 +3109,10 @@ async function editProduct(id) {
   }
   renderVariantAdminList();
 
+  // Ingat posisi scroll saat ini, supaya bisa dikembalikan lagi begitu selesai
+  // simpan/batal edit -- admin sering edit produk berurutan dari bawah daftar,
+  // jadi tidak perlu scroll ulang dari atas tiap habis edit satu produk.
+  adminScrollBeforeEdit = window.scrollY;
   document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
