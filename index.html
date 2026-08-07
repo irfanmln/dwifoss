@@ -220,7 +220,8 @@
   .btn-primary:disabled { background: var(--warm-gray); cursor: not-allowed; }
   .btn-secondary { width: 100%; background: transparent; color: var(--espresso); border: 1px solid var(--espresso); padding: 14px; font-family: var(--sans); font-size: 12px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; margin-top: 10px; }
   .btn-secondary:disabled { opacity: 0.5; cursor: not-allowed; }
-  .btn-back { display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--warm-gray); cursor: pointer; padding: 16px 24px; font-family: var(--sans); }
+  .btn-back { display: flex; align-items: center; gap: 8px; background: none; border: none; font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--caramel); font-weight: 700; cursor: pointer; padding: 16px 24px; font-family: var(--sans); }
+  .btn-back:hover { color: var(--espresso); }
 
   /* CART */
   .cart-empty { text-align: center; padding: 80px 24px; }
@@ -580,7 +581,7 @@
 <!-- ════ PAGE: DETAIL ════ -->
 <div class="page" id="page-detail">
   <div class="container" style="max-width:1100px">
-    <button class="btn-back" onclick="showPage('shop')">← Back</button>
+    <button class="btn-back" onclick="goBackToShop()">← Back</button>
     <div class="detail-layout">
       <div class="detail-img-wrap">
         <div class="gallery-wrap" id="galleryWrap">
@@ -1181,6 +1182,18 @@ function updateCartCount() {
 }
 
 // ── SHOW PAGE ──
+let shopScrollBeforeDetail = null;
+
+// Dipakai tombol "Back" di halaman detail produk, supaya kembali ke posisi
+// scroll katalog semula, bukan selalu balik ke paling atas beranda.
+function goBackToShop() {
+  showPage('shop');
+  if (shopScrollBeforeDetail !== null) {
+    window.scrollTo({ top: shopScrollBeforeDetail, behavior: 'instant' });
+    shopScrollBeforeDetail = null;
+  }
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
@@ -1520,6 +1533,9 @@ function priceHtml(price, originalPrice) {
 }
 
 async function openDetail(id) {
+  // Ingat posisi scroll katalog sebelum masuk detail, supaya tombol Back bisa
+  // mengembalikan ke posisi ini alih-alih selalu balik ke paling atas beranda.
+  shopScrollBeforeDetail = window.scrollY;
   currentProduct = allProducts.find(p => p.id === id);
   showPage('detail');
 
@@ -2846,8 +2862,12 @@ async function addProduct() {
   btn.disabled = false;
   btn.textContent = editId ? 'Simpan Perubahan' : 'Tambah Produk';
   showToast(editId ? 'Produk berhasil diperbarui ✓' : 'Produk berhasil ditambahkan ✓');
+  // Render ulang tabel produk DULU baru reset form (yang memicu kembali ke posisi
+  // scroll semula) -- kalau dibalik, tabel yang sempat mengecil ("Memuat...") saat
+  // scroll animasi jalan bikin posisinya ke-clamp dan tidak nyambung lagi begitu
+  // tabel penuh lagi, hasilnya scroll balik ke atas alih-alih ke posisi semula.
+  await loadAdminProducts();
   resetProductForm();
-  loadAdminProducts();
   loadProducts();
 }
 
