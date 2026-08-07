@@ -3113,7 +3113,7 @@ async function editProduct(id) {
   // simpan/batal edit -- admin sering edit produk berurutan dari bawah daftar,
   // jadi tidak perlu scroll ulang dari atas tiap habis edit satu produk.
   adminScrollBeforeEdit = window.scrollY;
-  document.querySelector('.admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.querySelector('#tab-products .admin-form-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function cancelEditProduct() { resetProductForm(); }
