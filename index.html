@@ -674,6 +674,10 @@
           <input class="form-input" id="fieldZip" type="text" placeholder="12345">
         </div>
       </div>
+      <div class="form-group">
+        <label class="form-label">Village / Kelurahan (optional)</label>
+        <input class="form-input" id="fieldKelurahan" type="text" placeholder="Enter your village/kelurahan">
+      </div>
     </div>
     <div class="checkout-section">
       <h3>Promo Code</h3>
@@ -2001,6 +2005,7 @@ async function placeOrder() {
   const province = provinceSel.value ? provinceSel.selectedOptions[0].text : '';
   const district = districtSel.value ? districtSel.selectedOptions[0].text : '';
   const zip = document.getElementById('fieldZip').value.trim();
+  const kelurahan = document.getElementById('fieldKelurahan').value.trim();
   const promoCode = document.getElementById('fieldPromoCode').value.trim();
 
   if (!name || !phone || !address || !city || !province || !district) {
@@ -2020,6 +2025,7 @@ async function placeOrder() {
     customer_phone: phone,
     customer_email: email || null,
     address, city, province, district,
+    kelurahan: kelurahan || null,
     zip_code: zip || null,
     items: cart,
     total: subtotal,
@@ -2058,7 +2064,7 @@ async function placeOrder() {
 
   // Alamat
   document.getElementById('successAddress').innerHTML =
-    `<strong>${name}</strong><br>${address}<br>${district}, ${city}, ${province}${zip ? ' ' + zip : ''}<br>Indonesia`;
+    `<strong>${name}</strong><br>${address}${kelurahan ? ', ' + kelurahan : ''}<br>${district}, ${city}, ${province}${zip ? ' ' + zip : ''}<br>Indonesia`;
 
   // Kontak
   document.getElementById('successContact').innerHTML =
@@ -2066,7 +2072,7 @@ async function placeOrder() {
 
   // Tombol konfirmasi WhatsApp
   const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${variantText(i) ? ' ('+variantText(i)+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
-  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}, ${district}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}${promoCode ? `\n\n*Kode Promo*: ${promoCode}` : ''}`;
+  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}${kelurahan ? ', ' + kelurahan : ''}, ${district}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}${promoCode ? `\n\n*Kode Promo*: ${promoCode}` : ''}`;
   document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
   const orderCart = [...cart];
@@ -2433,7 +2439,7 @@ function renderAdminOrdersTable() {
           <td colspan="5" style="padding:0 12px">
             <div class="order-detail-box" id="detail-${o.id}">
               <strong>Alamat Pengiriman:</strong><br>
-              ${o.address}${o.district ? ', '+o.district : ''}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
+              ${o.address}${o.kelurahan ? ', '+o.kelurahan : ''}${o.district ? ', '+o.district : ''}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
               ${o.promo_code ? `<strong>Kode Promo:</strong> ${o.promo_code}<br><br>` : ''}
               <strong>Produk yang Dipesan:</strong>
               <div class="order-items-list">${itemsHtml}</div>
