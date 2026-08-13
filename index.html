@@ -1344,15 +1344,14 @@ async function loadProducts() {
   const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
   if (error) { showToast('Failed to load products'); return; }
 
-  // Ambil cover (sort_order terendah) untuk setiap produk
-  const ids = data.map(p => p.id);
-  let coverMap = {};
-  if (ids.length > 0) {
-    const { data: covers } = await sb.from('product_images').select('product_id, image_url').in('product_id', ids).order('sort_order', { ascending: true });
-    if (covers) {
-      covers.forEach(c => { if (!coverMap[c.product_id]) coverMap[c.product_id] = c.image_url; });
-    }
-  }
+  // Ambil cover (foto sort_order 0) tiap produk. Sengaja TIDAK pakai .in('product_id', ids):
+  // dengan ratusan produk, daftar ID di URL query bisa kepanjangan (400 Bad Request), dan kalau
+  // filter berdasarkan produk-nya dilewati sekalipun, jumlah baris foto totalnya bisa kepotong
+  // di batas 1000 baris default Supabase kalau banyak produk punya beberapa foto. Filter
+  // sort_order=0 membatasi hasilnya persis 1 baris per produk, jadi kedua masalah itu tidak muncul.
+  const { data: covers } = await sb.from('product_images').select('product_id, image_url').eq('sort_order', 0);
+  const coverMap = {};
+  if (covers) covers.forEach(c => { coverMap[c.product_id] = c.image_url; });
   const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
 
   allProducts = products;
@@ -2468,13 +2467,11 @@ async function loadAdminProducts() {
   const { data, error } = await sb.from('products').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
   if (error) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Gagal memuat</td></tr>'; return; }
 
-  // Ambil cover tiap produk
-  const ids = data.map(p => p.id);
-  let coverMap = {};
-  if (ids.length > 0) {
-    const { data: covers } = await sb.from('product_images').select('product_id, image_url').in('product_id', ids).order('sort_order', { ascending: true });
-    if (covers) covers.forEach(c => { if (!coverMap[c.product_id]) coverMap[c.product_id] = c.image_url; });
-  }
+  // Ambil cover (foto sort_order 0) tiap produk. Sengaja TIDAK pakai .in('product_id', ids) --
+  // lihat komentar di loadProducts() untuk alasannya (URL query kepanjangan + batas 1000 baris Supabase).
+  const { data: covers } = await sb.from('product_images').select('product_id, image_url').eq('sort_order', 0);
+  const coverMap = {};
+  if (covers) covers.forEach(c => { coverMap[c.product_id] = c.image_url; });
   allProducts = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
   renderAdminProductsTable();
 }
