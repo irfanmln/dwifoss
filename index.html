@@ -1164,6 +1164,8 @@ let currentPage = 1;
 let currentCategory = 'all';
 let currentSearch = '';
 const PAGE_SIZE = 24;
+const PAGINATION_WINDOW_SIZE = 5;
+let paginationWindowStart = 1;
 
 // ── FORMAT RUPIAH ──
 function formatRp(n) {
@@ -1345,6 +1347,7 @@ async function loadProducts() {
   allProducts = products;
   filteredProducts = products;
   currentPage = 1;
+  paginationWindowStart = 1;
   renderProducts();
 }
 
@@ -1409,6 +1412,7 @@ function applyFilter() {
 
   filteredProducts = result;
   currentPage = 1;
+  paginationWindowStart = 1;
   renderProducts();
 }
 
@@ -1480,13 +1484,12 @@ function renderPagination(totalPages) {
   if (totalPages <= 1) { el.innerHTML = ''; el.style.padding = '0'; return; }
   el.style.padding = '';
 
+  // Jendela nomor halaman geser 5 angka sekaligus — lihat goPage() untuk logika geser.
+  const windowEnd = Math.min(paginationWindowStart + PAGINATION_WINDOW_SIZE - 1, totalPages);
+
   let html = `<button class="page-btn arrow" onclick="goPage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>‹</button>`;
 
-  for (let i = 1; i <= totalPages; i++) {
-    if (totalPages > 7 && i > 2 && i < totalPages - 1 && Math.abs(i - currentPage) > 1) {
-      if (i === 3 || i === totalPages - 2) html += `<span style="padding:0 4px;color:var(--warm-gray)">...</span>`;
-      continue;
-    }
+  for (let i = paginationWindowStart; i <= windowEnd; i++) {
     html += `<button class="page-btn ${i === currentPage ? 'active' : ''}" onclick="goPage(${i})">${i}</button>`;
   }
 
@@ -1495,7 +1498,22 @@ function renderPagination(totalPages) {
 }
 
 function goPage(page) {
+  const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
+  if (page < 1 || page > totalPages) return;
   currentPage = page;
+
+  // Klik nomor di ujung jendela yang sedang tampil = geser jendela 2 halaman ke arah itu
+  // (mis. jendela 1-5, klik 5 -> jendela jadi 3-7). Klik/lompat ke halaman di luar jendela
+  // (lewat panah ‹ › atau langsung) cukup menggeser jendela secukupnya supaya halaman itu terlihat.
+  const windowEnd = paginationWindowStart + PAGINATION_WINDOW_SIZE - 1;
+  if (page === windowEnd && page < totalPages) paginationWindowStart += 2;
+  else if (page === paginationWindowStart && page > 1) paginationWindowStart -= 2;
+  else if (page < paginationWindowStart) paginationWindowStart = page;
+  else if (page > windowEnd) paginationWindowStart = page - PAGINATION_WINDOW_SIZE + 1;
+
+  const maxStart = Math.max(1, totalPages - PAGINATION_WINDOW_SIZE + 1);
+  paginationWindowStart = Math.max(1, Math.min(paginationWindowStart, maxStart));
+
   renderProducts();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
