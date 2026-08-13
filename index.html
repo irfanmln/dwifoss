@@ -3106,9 +3106,16 @@ function resetProductForm() {
   }
 }
 
+let editProductToken = 0;
+
 async function editProduct(id) {
   const p = allProducts.find(x => x.id === id);
   if (!p) { showToast('Produk tidak ditemukan'); return; }
+
+  // Token generasi: kalau editProduct() dipanggil lagi (misal klik "Edit" dobel)
+  // sebelum proses ini selesai, panggilan lama ini berhenti sendiri di titik
+  // pengecekan token di bawah -- supaya foto/varian dari 2 pemanggilan tidak numpuk.
+  const myToken = ++editProductToken;
 
   const cat = p.category_id ? allCategories.find(c => c.id === p.category_id) : null;
   const mainCatId = cat ? (cat.parent_id || cat.id) : '';
@@ -3129,16 +3136,18 @@ async function editProduct(id) {
   document.getElementById('pCancelEditBtn').style.display = 'block';
 
   // Load foto existing ke pendingPhotos (file=null = foto lama)
-  pendingPhotos = [];
   const { data: imgs } = await sb.from('product_images').select('*').eq('product_id', id).order('sort_order', { ascending: true });
+  if (myToken !== editProductToken) return; // ada panggilan edit lain yang lebih baru, batalkan
+  pendingPhotos = [];
   if (imgs) imgs.forEach(img => pendingPhotos.push({ file: null, url: img.image_url, id: img.id }));
   renderPhotoPreview();
 
   // Load varian existing, rekonstruksi jadi 2 daftar (warna, ukuran) + grid harga/stok
+  const { data: vars } = await sb.from('product_variants').select('*').eq('product_id', id).order('sort_order', { ascending: true });
+  if (myToken !== editProductToken) return;
   pendingColors = [];
   pendingSizes = [];
   pendingGrid = {};
-  const { data: vars } = await sb.from('product_variants').select('*').eq('product_id', id).order('sort_order', { ascending: true });
   if (vars) {
     const colorKeyByName = new Map();
     const sizeKeyByLabel = new Map();
