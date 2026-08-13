@@ -628,6 +628,10 @@
     <div class="checkout-section">
       <h3>Order Summary</h3>
       <div id="checkoutSummary"></div>
+      <div class="form-group" style="margin-top:16px">
+        <label class="form-label">Promo Code (optional)</label>
+        <input class="form-input" id="fieldPromoCode" type="text" placeholder="Enter promo code if you have one">
+      </div>
     </div>
     <div class="checkout-section">
       <h3>Buyer Information</h3>
@@ -694,6 +698,10 @@
     <div class="success-bank-highlight">
       <p class="label">Order Number</p>
       <p id="successOrderNo" style="font-size:18px;font-weight:500;letter-spacing:3px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
+      <div id="successPromoWrap" style="display:none">
+        <p class="label">Promo Code</p>
+        <p id="successPromoCode" style="font-size:15px;font-weight:500;letter-spacing:2px;color:var(--ivory);margin-bottom:20px;padding-bottom:16px;border-bottom:1px solid rgba(255,255,255,0.15)"></p>
+      </div>
       <p class="label">Order Sub Total</p>
       <p class="amount" id="successTotal"></p>
       <div class="bank-detail">
@@ -1991,6 +1999,7 @@ async function placeOrder() {
   const province = provinceSel.value ? provinceSel.selectedOptions[0].text : '';
   const district = districtSel.value ? districtSel.selectedOptions[0].text : '';
   const zip = document.getElementById('fieldZip').value.trim();
+  const promoCode = document.getElementById('fieldPromoCode').value.trim();
 
   if (!name || !phone || !address || !city || !province || !district) {
     showToast('Please fill in all required fields (*)');
@@ -2013,7 +2022,8 @@ async function placeOrder() {
     items: cart,
     total: subtotal,
     status: 'pending',
-    order_no: orderNo
+    order_no: orderNo,
+    promo_code: promoCode || null
   });
 
   btn.disabled = false;
@@ -2026,6 +2036,8 @@ async function placeOrder() {
   document.getElementById('successGreeting').textContent = 'Thank you, ' + name + '!';
   document.getElementById('successTotal').textContent = formatRp(subtotal);
   document.getElementById('successTotal2').textContent = formatRp(subtotal);
+  document.getElementById('successPromoWrap').style.display = promoCode ? 'block' : 'none';
+  document.getElementById('successPromoCode').textContent = promoCode;
 
   // Items
   document.getElementById('successItems').innerHTML = cart.map(i => `
@@ -2052,7 +2064,7 @@ async function placeOrder() {
 
   // Tombol konfirmasi WhatsApp
   const waItemsText = cart.map(i => `- ${i.brand} ${i.name}${variantText(i) ? ' ('+variantText(i)+')' : ''}${i.qty > 1 ? ' x' + i.qty : ''} (${formatRp(i.price * i.qty)})`).join('\n');
-  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}, ${district}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}`;
+  const waMessage = `Halo Dwie Foss, saya mau konfirmasi pesanan:\n\n*No. Pesanan*: ${orderNo}\n*Nama*: ${name}\n*No. HP*: ${phone}\n*Alamat* :\n${address}, ${district}, ${city}, ${province}${zip ? ' ' + zip : ''}\n\n*Produk*:\n${waItemsText}\n\n*Subtotal* (sebelum ongkir) :\n${formatRp(subtotal)}${promoCode ? `\n\n*Kode Promo*: ${promoCode}` : ''}`;
   document.getElementById('successWaBtn').href = `https://wa.me/6285724234874?text=${encodeURIComponent(waMessage)}`;
 
   const orderCart = [...cart];
@@ -2420,6 +2432,7 @@ function renderAdminOrdersTable() {
             <div class="order-detail-box" id="detail-${o.id}">
               <strong>Alamat Pengiriman:</strong><br>
               ${o.address}${o.district ? ', '+o.district : ''}, ${o.city}, ${o.province}${o.zip_code ? ', '+o.zip_code : ''}<br><br>
+              ${o.promo_code ? `<strong>Kode Promo:</strong> ${o.promo_code}<br><br>` : ''}
               <strong>Produk yang Dipesan:</strong>
               <div class="order-items-list">${itemsHtml}</div>
               <strong style="display:block;margin-top:8px">Riwayat Pembelian Pelanggan Ini:</strong>
