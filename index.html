@@ -628,10 +628,6 @@
     <div class="checkout-section">
       <h3>Order Summary</h3>
       <div id="checkoutSummary"></div>
-      <div class="form-group" style="margin-top:16px">
-        <label class="form-label">Promo Code (optional)</label>
-        <input class="form-input" id="fieldPromoCode" type="text" placeholder="Enter promo code if you have one">
-      </div>
     </div>
     <div class="checkout-section">
       <h3>Buyer Information</h3>
@@ -677,6 +673,13 @@
           <label class="form-label">Postal Code</label>
           <input class="form-input" id="fieldZip" type="text" placeholder="12345">
         </div>
+      </div>
+    </div>
+    <div class="checkout-section">
+      <h3>Promo Code</h3>
+      <div class="form-group">
+        <label class="form-label">Promo Code (optional)</label>
+        <input class="form-input" id="fieldPromoCode" type="text" placeholder="Enter promo code if you have one">
       </div>
     </div>
     <button class="btn-primary" id="btnOrder" onclick="placeOrder()">Create Order</button>
