@@ -1211,6 +1211,22 @@ function goBackToShop() {
   }
 }
 
+// ── RIWAYAT BROWSER (tombol back/forward, termasuk tombol back HP) ──
+// Situs ini satu halaman HTML yang tampilannya "disulap" lewat showPage(),
+// jadi secara default browser tidak tahu ada perpindahan "halaman" internal --
+// tombol back langsung keluar dari situs. Supaya tombol back bisa mundur satu
+// langkah demi langkah (produk -> toko -> keluar situs, dst), tiap showPage()
+// mendaftarkan entri riwayat baru, dan popstate (saat back/forward ditekan)
+// membaca entri itu untuk merender ulang tampilan yang sesuai.
+let restoringFromPopState = false;
+
+function buildPageHistoryState(name) {
+  const state = { page: name };
+  if (name === 'detail' && currentProduct) state.productId = currentProduct.id;
+  if (name === 'shop') { state.category = currentCategory; state.search = currentSearch; }
+  return state;
+}
+
 function showPage(name) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
@@ -1232,7 +1248,48 @@ function showPage(name) {
   if (footerEl) footerEl.style.display = isAdminPage ? 'none' : '';
   const waFloatEl = document.querySelector('.wa-float');
   if (waFloatEl) waFloatEl.style.display = isAdminPage ? 'none' : '';
+
+  // Daftarkan entri riwayat, KECUALI kalau showPage ini sendiri dipicu oleh
+  // tombol back/forward (popstate) -- kalau tidak, akan bikin loop/duplikat.
+  if (!restoringFromPopState) {
+    const state = buildPageHistoryState(name);
+    const url = isAdminPage ? window.location.pathname : '/';
+    // Ganti (bukan tambah) entri kalau masih di halaman toko yang sama --
+    // supaya ganti-ganti kategori/pencarian tidak bikin banyak langkah back
+    // yang harus ditekan cuma buat keluar dari halaman toko.
+    if (name === 'shop' && history.state && history.state.page === 'shop') {
+      history.replaceState(state, '', url);
+    } else {
+      history.pushState(state, '', url);
+    }
+  }
 }
+
+window.addEventListener('popstate', (event) => {
+  restoringFromPopState = true;
+  const state = event.state;
+  if (!state || !state.page) {
+    // Entri sebelum situs ini pernah mendaftarkan riwayat -- anggap toko.
+    showPage('shop');
+  } else if (state.page === 'detail' && state.productId) {
+    openDetail(state.productId);
+  } else if (state.page === 'shop') {
+    currentCategory = state.category || 'all';
+    currentSearch = state.search || '';
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+      searchInput.value = currentSearch;
+      document.getElementById('searchClear').classList.toggle('show', currentSearch.length > 0);
+    }
+    applyFilter();
+    showPage('shop');
+  } else if (document.getElementById('page-' + state.page)) {
+    showPage(state.page);
+  } else {
+    showPage('shop');
+  }
+  restoringFromPopState = false;
+});
 
 // ── TOAST ──
 // Zoom foto produk (klik gambar untuk lihat versi besar)
@@ -1428,6 +1485,13 @@ function applyFilter() {
   currentPage = 1;
   paginationWindowStart = 1;
   renderProducts();
+
+  // Simpan kategori/pencarian terbaru ke entri riwayat toko yang sedang aktif,
+  // supaya kalau nanti pembeli buka detail produk lalu tekan back, tampilan
+  // toko yang kembali tersaji sesuai filter yang terakhir dipakai.
+  if (!restoringFromPopState && document.getElementById('page-shop').classList.contains('active')) {
+    history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
+  }
 }
 
 // ── SEARCH ──
@@ -3363,6 +3427,7 @@ const path = window.location.pathname;
 if (path === '/admin' || path === '/admin/') {
   goAdmin();
 } else {
+  history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
   loadProducts();
 }
 </script>
