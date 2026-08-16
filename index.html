@@ -415,6 +415,8 @@
   .footer-social a:hover { color: var(--caramel); }
   .footer-bottom { border-top: 1px solid var(--stone); margin-top: 40px; padding-top: 20px; text-align: center; }
   .footer-bottom p { font-size: 11px; color: var(--warm-gray); letter-spacing: 1px; }
+  .footer-disclaimer { border: 1px solid var(--stone); border-radius: 6px; padding: 14px 18px; margin-top: 32px; }
+  .footer-disclaimer p { font-size: 11px; color: var(--warm-gray); line-height: 1.7; text-align: center; }
 
   /* WHATSAPP FLOATING */
   .wa-float { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #25D366; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 150; text-decoration: none; transition: transform 0.2s; }
@@ -1137,6 +1139,9 @@
         <div class="footer-social" id="footerSocial"></div>
       </div>
     </div>
+    <div class="footer-disclaimer">
+      <p>Kami adalah independent reseller yang tidak terafiliasi, diasosiasikan, atau secara resmi terhubung dengan brand yang dijual di situs ini. Semua nama merek, logo, dan merek dagang adalah milik dari pemilik hak masing-masing.</p>
+    </div>
     <div class="footer-bottom">
       <p>© 2026 DWIE FOSS — Your Authentic Style Companion</p>
     </div>
@@ -1280,6 +1285,17 @@ function showPage(name) {
 }
 
 window.addEventListener('popstate', (event) => {
+  // Batasi tombol back (termasuk tombol back HP) di halaman admin: jangan
+  // sampai lanjut keluar ke toko utama, mentok di admin saja. Kalau lagi
+  // nampilin admin dan tujuan back bukan entri admin itu sendiri, dorong
+  // lagi entri admin -- jadi back-nya tidak kemana-mana selama masih admin.
+  const adminPageEl = document.getElementById('page-admin');
+  const isShowingAdmin = adminPageEl && adminPageEl.classList.contains('active');
+  if (isShowingAdmin && (!event.state || event.state.page !== 'admin')) {
+    history.pushState({ page: 'admin' }, '', '/admin');
+    return;
+  }
+
   restoringFromPopState = true;
   const state = event.state;
   if (!state || !state.page) {
