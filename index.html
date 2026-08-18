@@ -407,16 +407,17 @@
   .footer-grid { display: grid; grid-template-columns: 1fr; gap: 36px; }
   @media (min-width: 768px) { .footer-grid { grid-template-columns: repeat(4, 1fr); gap: 24px; } }
   .footer-col h4 { font-family: var(--sans); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--espresso); font-weight: 500; margin-bottom: 16px; }
-  .footer-col p, .footer-col a { display: block; font-size: 13px; color: var(--warm-gray); line-height: 2; text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--sans); text-align: left; padding: 0; }
+  .footer-col p, .footer-col a { display: block; font-size: 13px; color: var(--espresso); font-weight: 500; line-height: 2; text-decoration: none; cursor: pointer; background: none; border: none; font-family: var(--sans); text-align: left; padding: 0; }
   .footer-col a:hover { color: var(--caramel); }
   .footer-social { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
-  .footer-social a { display: flex; align-items: center; gap: 8px; color: var(--warm-gray); transition: color 0.2s; }
+  .footer-social a { display: flex; align-items: center; gap: 8px; color: var(--espresso); font-weight: 500; transition: color 0.2s; }
   .footer-social a svg { flex-shrink: 0; color: var(--espresso); }
   .footer-social a:hover { color: var(--caramel); }
   .footer-bottom { border-top: 1px solid var(--stone); margin-top: 40px; padding-top: 20px; text-align: center; }
-  .footer-bottom p { font-size: 11px; color: var(--warm-gray); letter-spacing: 1px; }
+  .footer-bottom p { font-size: 11px; color: var(--espresso); font-weight: 500; letter-spacing: 1px; }
   .footer-disclaimer { border: 1px solid var(--stone); border-radius: 6px; padding: 14px 18px; margin-top: 32px; }
-  .footer-disclaimer p { font-size: 11px; color: var(--warm-gray); line-height: 1.7; text-align: center; }
+  .footer-disclaimer h5 { font-family: var(--sans); font-size: 12px; letter-spacing: 2px; text-transform: uppercase; color: var(--espresso); font-weight: 700; text-align: center; margin-bottom: 8px; }
+  .footer-disclaimer p { font-size: 11px; color: var(--espresso); font-weight: 500; line-height: 1.7; text-align: center; }
 
   /* WHATSAPP FLOATING */
   .wa-float { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: #25D366; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 16px rgba(0,0,0,0.25); z-index: 150; text-decoration: none; transition: transform 0.2s; }
@@ -1127,6 +1128,7 @@
       </div>
     </div>
     <div class="footer-disclaimer">
+      <h5>Disclaimer</h5>
       <p>We operate as an independent reseller and maintain no affiliation, association, or official connection with the brands featured on this website. All brand names, logos, and trademarks are the exclusive property of their respective rights holders.</p>
     </div>
     <div class="footer-bottom">
