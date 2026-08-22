@@ -1234,11 +1234,23 @@ let restoringFromPopState = false;
 function buildPageHistoryState(name) {
   const state = { page: name };
   if (name === 'detail' && currentProduct) state.productId = currentProduct.id;
-  if (name === 'shop') { state.category = currentCategory; state.search = currentSearch; }
+  if (name === 'shop') { state.category = currentCategory; state.search = currentSearch; state.catalogPage = currentPage; }
   return state;
 }
 
 function showPage(name) {
+  // Sebelum pindah KELUAR dari halaman toko, simpan dulu posisi scroll & nomor
+  // halaman katalog SAAT INI ke entri riwayat toko itu sendiri -- supaya kalau
+  // nanti kembali lagi ke sini lewat tombol back, posisinya persis seperti
+  // terakhir dilihat (bukan selalu balik ke halaman 1 paling atas / "Home").
+  const prevActive = document.querySelector('.page.active');
+  if (!restoringFromPopState && prevActive && prevActive.id === 'page-shop' && name !== 'shop') {
+    history.replaceState(
+      { page: 'shop', category: currentCategory, search: currentSearch, catalogPage: currentPage, scrollY: window.scrollY },
+      '', '/'
+    );
+  }
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById('page-' + name).classList.add('active');
   window.scrollTo(0, 0);
@@ -1303,8 +1315,15 @@ window.addEventListener('popstate', (event) => {
       searchInput.value = currentSearch;
       document.getElementById('searchClear').classList.toggle('show', currentSearch.length > 0);
     }
+    // Kembalikan juga nomor halaman katalog & posisi scroll terakhir (restoringFromPopState
+    // masih true di titik ini, jadi applyFilter() TIDAK akan menimpa currentPage balik ke 1).
+    currentPage = state.catalogPage || 1;
+    paginationWindowStart = Math.max(1, currentPage - 2);
     applyFilter();
     showPage('shop');
+    if (typeof state.scrollY === 'number' && state.scrollY > 0) {
+      requestAnimationFrame(() => window.scrollTo(0, state.scrollY));
+    }
   } else if (document.getElementById('page-' + state.page)) {
     showPage(state.page);
   } else {
@@ -1504,15 +1523,20 @@ function applyFilter() {
   }
 
   filteredProducts = result;
-  currentPage = 1;
-  paginationWindowStart = 1;
+  // Ganti kategori/pencarian memang sengaja reset ke halaman 1 -- tapi kalau
+  // applyFilter() ini dipanggil dari proses kembali via tombol back (popstate),
+  // JANGAN direset, biar currentPage yang sudah di-set popstate tetap dipakai.
+  if (!restoringFromPopState) {
+    currentPage = 1;
+    paginationWindowStart = 1;
+  }
   renderProducts();
 
-  // Simpan kategori/pencarian terbaru ke entri riwayat toko yang sedang aktif,
-  // supaya kalau nanti pembeli buka detail produk lalu tekan back, tampilan
-  // toko yang kembali tersaji sesuai filter yang terakhir dipakai.
+  // Simpan kategori/pencarian/halaman terbaru ke entri riwayat toko yang sedang
+  // aktif, supaya kalau nanti pembeli buka detail produk lalu tekan back,
+  // tampilan toko yang kembali tersaji sesuai posisi yang terakhir dipakai.
   if (!restoringFromPopState && document.getElementById('page-shop').classList.contains('active')) {
-    history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
+    history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch, catalogPage: currentPage }, '', '/');
   }
 }
 
