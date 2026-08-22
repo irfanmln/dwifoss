@@ -2620,7 +2620,7 @@ function renderAdminProductsTable() {
           ? `<img src="${p.cover_url}" loading="lazy" style="width:48px;height:48px;object-fit:cover;display:block;margin-bottom:6px;border:1px solid var(--stone)">`
           : `<span style="font-size:24px;display:block;margin-bottom:4px">👜</span>`}
         <strong style="font-size:13px;display:block">${p.name}</strong>
-        <span style="font-size:11px;color:var(--warm-gray)">${p.brand}</span>
+        <span style="font-size:11px;color:var(--caramel);font-weight:700;letter-spacing:1px;text-transform:uppercase">${p.brand}</span>
       </td>
       <td style="font-weight:500;font-size:13px">${formatRp(p.price)}${p.original_price && p.original_price > p.price ? `<br><span style="font-size:11px;color:var(--warm-gray);text-decoration:line-through">${formatRp(p.original_price)}</span>` : ''}</td>
       <td><span class="status-badge ${p.is_active ? 'status-confirmed' : 'status-pending'}">${p.is_active ? 'Aktif' : 'Nonaktif'}</span></td>
