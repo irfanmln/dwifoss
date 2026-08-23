@@ -1276,8 +1276,13 @@ function showPage(name) {
   // halaman katalog SAAT INI ke entri riwayat toko itu sendiri -- supaya kalau
   // nanti kembali lagi ke sini lewat tombol back, posisinya persis seperti
   // terakhir dilihat (bukan selalu balik ke halaman 1 paling atas / "Home").
-  const prevActive = document.querySelector('.page.active');
-  if (!restoringFromPopState && prevActive && prevActive.id === 'page-shop' && name !== 'shop') {
+  // PENTING: dicek lewat history.state (bukan class .active di DOM) -- HTML
+  // mentah selalu punya page-shop ber-class "active" dari awal (default statis
+  // di markup), bukan cuma waktu benar-benar sedang di toko. Kalau dicek dari
+  // DOM saja, showPage('admin') pertama kali setelah refresh ke /admin ikut
+  // kepancing kondisi ini dan diam-diam ganti URL /admin jadi '/' -- makanya
+  // refresh panel admin sempat balik ke toko & minta login ulang.
+  if (!restoringFromPopState && history.state && history.state.page === 'shop' && name !== 'shop') {
     history.replaceState(
       { page: 'shop', category: currentCategory, search: currentSearch, catalogPage: currentPage, scrollY: window.scrollY },
       '', '/'
