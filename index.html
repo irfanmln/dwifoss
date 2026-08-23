@@ -303,6 +303,12 @@
   /* ADMIN PRODUCT FORM */
   .admin-form-card { background: var(--white); border: 1px solid var(--stone); padding: 20px; margin-bottom: 24px; }
   .admin-form-card h3 { font-family: var(--serif); font-size: 18px; font-weight: 400; margin-bottom: 16px; padding-bottom: 10px; border-bottom: 1px solid var(--stone); }
+  .stats-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+  .stat-tile { border: 1px solid var(--stone); padding: 18px 12px; text-align: center; }
+  .stat-tile .stat-label { font-size: 11px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--caramel); font-weight: 700; margin-bottom: 12px; }
+  .stat-tile .stat-number { font-family: var(--serif); font-size: 30px; color: var(--espresso); line-height: 1.2; }
+  .stat-tile .stat-sub { font-size: 11px; color: var(--warm-gray); margin-top: 6px; }
+  @media (max-width: 700px) { .stats-grid { grid-template-columns: repeat(2, 1fr); } }
   .btn-small { padding: 8px 16px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; border: none; cursor: pointer; font-family: var(--sans); font-weight: 500; }
   .btn-danger { background: #c0392b; color: white; }
   .btn-success { background: #27ae60; color: white; }
@@ -782,6 +788,7 @@
   </div>
   <div class="admin-tabs">
     <button class="admin-tab active" onclick="switchAdminTab('orders')">Pesanan</button>
+    <button class="admin-tab" onclick="switchAdminTab('stats')">Statistik</button>
     <button class="admin-tab" onclick="switchAdminTab('products')">Produk</button>
     <button class="admin-tab" onclick="switchAdminTab('categories')">Kategori</button>
     <button class="admin-tab" onclick="switchAdminTab('settings')">Pengaturan</button>
@@ -809,6 +816,32 @@
         <button class="btn-secondary" style="margin-top:0" onclick="resetOrderFilters()">Reset Filter</button>
       </div>
       <div id="ordersList"></div>
+    </div>
+
+    <!-- TAB: STATISTIK PENGUNJUNG -->
+    <div class="admin-section" id="tab-stats">
+      <div class="admin-form-card">
+        <h3>Statistik Pengunjung</h3>
+        <div class="stats-grid" id="visitorStatsGrid">
+          <p style="grid-column:1/-1;text-align:center;color:var(--warm-gray)">Memuat...</p>
+        </div>
+      </div>
+
+      <div class="admin-form-card">
+        <h3>Rentang Tanggal Custom</h3>
+        <div class="form-row">
+          <div class="form-group">
+            <label class="form-label">Dari Tanggal</label>
+            <input class="form-input" id="visitorDateFrom" type="date" onchange="applyVisitorDateRange()">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Sampai Tanggal</label>
+            <input class="form-input" id="visitorDateTo" type="date" onchange="applyVisitorDateRange()">
+          </div>
+        </div>
+        <div class="stats-grid" id="visitorCustomRangeGrid" style="margin-top:8px"></div>
+        <div id="visitorChart" style="margin-top:20px"></div>
+      </div>
     </div>
 
     <!-- TAB: PRODUCTS -->
@@ -2223,7 +2256,183 @@ function showAdminPanel(user) {
   loadAdminCategories();
   loadAdminBanners();
   loadSiteSettings();
+  loadVisitorStats();
   renderVariantAdminList();
+}
+
+// ── STATISTIK PENGUNJUNG ──
+// Penanda anonim per browser (bukan data pribadi) buat bedakan pengunjung
+// unik vs total kunjungan. Disimpan di localStorage, bertahan antar sesi.
+function getOrCreateVisitorId() {
+  let id = localStorage.getItem('dwiefoss_visitor_id');
+  if (!id) {
+    id = crypto.randomUUID();
+    localStorage.setItem('dwiefoss_visitor_id', id);
+  }
+  return id;
+}
+
+// Dipanggil sekali tiap situs (toko, bukan admin) dimuat. Gagal diam-diam --
+// pencatatan kunjungan tidak boleh mengganggu pengalaman belanja.
+async function trackPageVisit() {
+  try {
+    await sb.from('page_visits').insert({ visitor_id: getOrCreateVisitorId() });
+  } catch (e) {
+    console.error('trackPageVisit gagal:', e);
+  }
+}
+
+let allVisitData = []; // cache di memori -- dipakai ulang oleh kartu tetap, filter custom, & grafik
+
+function summarizeVisits(rows) {
+  return { total: rows.length, unique: new Set(rows.map(r => r.visitor_id)).size };
+}
+
+// Kunci tanggal LOKAL (bukan UTC) -- supaya "hari ini"/grafik harian mengikuti
+// jam Indonesia, bukan ikut pergeseran tanggal UTC.
+function localDateKey(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+async function loadVisitorStats() {
+  const grid = document.getElementById('visitorStatsGrid');
+  if (!grid) return;
+
+  // Catatan: semua baris diambil sekaligus lalu dihitung di JS -- cukup ringan
+  // untuk skala pengunjung saat ini (lihat perhitungan storage yang sudah
+  // dibahas). Kalau nanti datanya sudah sangat besar, pertimbangkan bikin
+  // tabel rangkuman harian terpisah alih-alih query semua baris mentah.
+  const { data, error } = await sb.from('page_visits').select('visitor_id, created_at');
+  if (error) {
+    grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--warm-gray)">Gagal memuat statistik</p>';
+    console.error(error);
+    return;
+  }
+  allVisitData = data;
+
+  const now = new Date();
+  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startOfWeek = new Date(startOfToday.getTime() - 6 * 24 * 60 * 60 * 1000);
+  const startOfMonth = new Date(startOfToday.getTime() - 29 * 24 * 60 * 60 * 1000);
+
+  const rowsToday = data.filter(r => new Date(r.created_at) >= startOfToday);
+  const rowsWeek = data.filter(r => new Date(r.created_at) >= startOfWeek);
+  const rowsMonth = data.filter(r => new Date(r.created_at) >= startOfMonth);
+
+  const stats = [
+    { label: 'Hari Ini', ...summarizeVisits(rowsToday) },
+    { label: '7 Hari Terakhir', ...summarizeVisits(rowsWeek) },
+    { label: '30 Hari Terakhir', ...summarizeVisits(rowsMonth) },
+    { label: 'Sejak Awal', ...summarizeVisits(data) },
+  ];
+
+  grid.innerHTML = stats.map(s => `
+    <div class="stat-tile">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-number">${s.total.toLocaleString('id-ID')}</div>
+      <div class="stat-sub">kunjungan &middot; ${s.unique.toLocaleString('id-ID')} unik</div>
+    </div>
+  `).join('');
+
+  // Default rentang custom & grafik: 30 hari terakhir, biar langsung ada isinya
+  // begitu tab dibuka tanpa pembeli/admin perlu pilih tanggal dulu.
+  const fromInput = document.getElementById('visitorDateFrom');
+  const toInput = document.getElementById('visitorDateTo');
+  if (fromInput && toInput && !fromInput.value && !toInput.value) {
+    toInput.value = localDateKey(now);
+    fromInput.value = localDateKey(startOfMonth);
+  }
+  applyVisitorDateRange();
+}
+
+// Dipanggil saat tanggal custom diganti -- update kartu rentang custom + grafik
+// harian sekaligus, keduanya dari cache allVisitData (tidak query ulang).
+function applyVisitorDateRange() {
+  const rangeGrid = document.getElementById('visitorCustomRangeGrid');
+  const chartEl = document.getElementById('visitorChart');
+  const fromVal = document.getElementById('visitorDateFrom')?.value;
+  const toVal = document.getElementById('visitorDateTo')?.value;
+  if (!rangeGrid || !chartEl || !fromVal || !toVal) return;
+
+  const fromDate = new Date(fromVal + 'T00:00:00');
+  const toDate = new Date(toVal + 'T23:59:59.999');
+
+  if (fromDate > toDate) {
+    rangeGrid.innerHTML = '<p style="grid-column:1/-1;color:var(--warm-gray);font-size:12px">Tanggal "Dari" tidak boleh setelah tanggal "Sampai".</p>';
+    chartEl.innerHTML = '';
+    return;
+  }
+
+  const rowsInRange = allVisitData.filter(r => {
+    const d = new Date(r.created_at);
+    return d >= fromDate && d <= toDate;
+  });
+  const s = summarizeVisits(rowsInRange);
+
+  rangeGrid.innerHTML = `
+    <div class="stat-tile" style="grid-column:1/-1">
+      <div class="stat-label">${fromVal} s/d ${toVal}</div>
+      <div class="stat-number">${s.total.toLocaleString('id-ID')}</div>
+      <div class="stat-sub">kunjungan &middot; ${s.unique.toLocaleString('id-ID')} unik</div>
+    </div>
+  `;
+
+  renderVisitorChart(fromDate, toDate, rowsInRange);
+}
+
+function renderVisitorChart(fromDate, toDate, rowsInRange) {
+  const container = document.getElementById('visitorChart');
+
+  // Batasi grafik harian ke maks ~62 hari -- lebih dari itu batangnya terlalu
+  // sempit buat dibaca, lebih baik pembeli persempit rentang tanggalnya.
+  // Dihitung dari tanggal kalender murni (bukan fromDate/toDate yang sudah
+  // dibubuhi jam 00:00:00/23:59:59 buat query), supaya tidak kelebihan 1 hari.
+  const fromDateOnly = new Date(fromDate.getFullYear(), fromDate.getMonth(), fromDate.getDate());
+  const toDateOnly = new Date(toDate.getFullYear(), toDate.getMonth(), toDate.getDate());
+  const dayCount = Math.round((toDateOnly - fromDateOnly) / (24 * 60 * 60 * 1000)) + 1;
+  if (dayCount > 62) {
+    container.innerHTML = '<p style="color:var(--warm-gray);font-size:12px">Rentang terlalu panjang untuk grafik harian (maks. sekitar 2 bulan). Persempit rentang tanggalnya buat lihat grafiknya.</p>';
+    return;
+  }
+
+  const dayCounts = new Map();
+  for (let i = 0; i < dayCount; i++) {
+    const d = new Date(fromDate.getTime() + i * 24 * 60 * 60 * 1000);
+    dayCounts.set(localDateKey(d), 0);
+  }
+  rowsInRange.forEach(r => {
+    const key = localDateKey(new Date(r.created_at));
+    if (dayCounts.has(key)) dayCounts.set(key, dayCounts.get(key) + 1);
+  });
+
+  const entries = [...dayCounts.entries()];
+  const maxCount = Math.max(0, ...entries.map(([, c]) => c));
+
+  // Kalau belum ada kunjungan sama sekali di rentang ini, batangnya semua 0%
+  // tinggi -- kelihatan seperti "grafik tidak muncul" padahal cuma datanya
+  // memang belum ada. Kasih pesan yang jelas alih-alih grafik kosong.
+  if (maxCount === 0) {
+    container.innerHTML = `
+      <p class="form-label" style="margin-bottom:10px">Kunjungan per Hari</p>
+      <p style="color:var(--warm-gray);font-size:12px">Belum ada data kunjungan di rentang tanggal ini.</p>
+    `;
+    return;
+  }
+
+  container.innerHTML = `
+    <p class="form-label" style="margin-bottom:10px">Kunjungan per Hari</p>
+    <div style="display:flex;align-items:flex-end;gap:2px;height:140px;border-bottom:1px solid var(--stone);overflow-x:auto">
+      ${entries.map(([day, count]) => `
+        <div style="flex:1;min-width:6px;height:100%;display:flex;align-items:flex-end" title="${day}: ${count} kunjungan">
+          <div style="width:100%;background:var(--caramel);height:${Math.max(Math.round((count / maxCount) * 100), count > 0 ? 3 : 0)}%;border-radius:2px 2px 0 0"></div>
+        </div>
+      `).join('')}
+    </div>
+    <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--warm-gray);margin-top:6px">
+      <span>${entries[0][0]}</span>
+      <span>${entries[entries.length - 1][0]}</span>
+    </div>
+  `;
 }
 
 function switchAdminTab(tab) {
@@ -3475,6 +3684,7 @@ if (path === '/admin' || path === '/admin/') {
 } else {
   history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
   loadProducts();
+  trackPageVisit();
 }
 </script>
 </body>
