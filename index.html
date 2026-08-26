@@ -125,6 +125,21 @@
   .price-original { font-size: 11px; color: var(--warm-gray); text-decoration: line-through; }
   .discount-badge { display: inline-block; font-size: 9px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 2px 6px; }
   .product-badge { display: inline-block; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; background: var(--caramel); color: white; padding: 2px 7px; margin-bottom: 8px; }
+  .card-swatches { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
+  .card-swatch { position: relative; width: 20px; height: 20px; border-radius: 50%; border: 1.5px solid var(--stone); padding: 1px; cursor: pointer; background: var(--white); flex-shrink: 0; }
+  .card-swatch-inner { width: 100%; height: 100%; border-radius: 50%; overflow: hidden; background: var(--stone); }
+  .card-swatch-inner img { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .card-swatch.unavailable { opacity: 0.4; }
+  .card-swatch.unavailable::after { content: ''; position: absolute; top: 50%; left: 8%; width: 84%; height: 1px; background: var(--espresso); transform: rotate(-40deg); }
+  .card-swatch-more { display: flex; align-items: center; justify-content: center; font-size: 10px; color: var(--warm-gray); padding-left: 2px; }
+  .card-swatch-popup {
+    display: none; position: absolute; bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%);
+    background: var(--white); border: 1px solid var(--stone); box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    border-radius: 4px; padding: 8px; width: 90px; z-index: 5; text-align: center; cursor: default;
+  }
+  .card-swatch-popup img { width: 100%; aspect-ratio: 1/1; object-fit: cover; border-radius: 2px; background: var(--stone); display: block; }
+  .card-swatch-popup span { display: block; font-size: 10px; color: var(--espresso); margin-top: 6px; letter-spacing: 0.5px; }
+  .card-swatch:hover .card-swatch-popup, .card-swatch.popup-open .card-swatch-popup { display: block; }
 
   /* SKELETON */
   .skeleton { background: linear-gradient(90deg, var(--stone) 25%, #ddd8cf 50%, var(--stone) 75%); background-size: 200% 100%; animation: shimmer 1.4s infinite; border-radius: 2px; }
@@ -1492,7 +1507,22 @@ async function loadProducts() {
   const { data: covers } = await sb.from('product_images').select('product_id, image_url').eq('sort_order', 0);
   const coverMap = {};
   if (covers) covers.forEach(c => { coverMap[c.product_id] = c.image_url; });
-  const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
+
+  // Kelompokkan varian per warna (buat swatch kecil di kartu katalog) -- pola query
+  // sama seperti cover di atas: ambil semua baris sekaligus, tidak pakai .in('product_id', ids).
+  const { data: variantRows } = await sb.from('product_variants').select('product_id, color_name, image_url, is_available, sort_order').order('sort_order', { ascending: true });
+  const swatchMap = {};
+  if (variantRows) {
+    variantRows.forEach(v => {
+      if (!v.color_name) return;
+      const list = swatchMap[v.product_id] || (swatchMap[v.product_id] = []);
+      let g = list.find(g => g.color_name === v.color_name);
+      if (!g) { g = { color_name: v.color_name, image_url: v.image_url || null, allUnavailable: true }; list.push(g); }
+      if (!g.image_url && v.image_url) g.image_url = v.image_url;
+      if (v.is_available) g.allUnavailable = false;
+    });
+  }
+  const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null, colorSwatches: swatchMap[p.id] || [] }));
 
   allProducts = products;
   filteredProducts = products;
@@ -1597,6 +1627,20 @@ function clearSearch() {
   applyFilter();
 }
 
+const CARD_SWATCH_MAX = 5;
+
+// Tap warna di kartu katalog cukup munculkan preview foto (bukan pindah halaman) --
+// di HP tidak ada hover, jadi ditoggle lewat klik. stopPropagation di HTML mencegah
+// klik ini ikut kepancing ke onclick kartu (yang buka halaman detail produk).
+function toggleCardSwatch(el) {
+  const wasOpen = el.classList.contains('popup-open');
+  document.querySelectorAll('.card-swatch.popup-open').forEach(s => s.classList.remove('popup-open'));
+  if (!wasOpen) el.classList.add('popup-open');
+}
+document.addEventListener('click', () => {
+  document.querySelectorAll('.card-swatch.popup-open').forEach(s => s.classList.remove('popup-open'));
+});
+
 function renderProducts() {
   const grid = document.getElementById('productGrid');
   const totalPages = Math.ceil(filteredProducts.length / PAGE_SIZE);
@@ -1634,6 +1678,19 @@ function renderProducts() {
           <p class="product-price">${formatRp(p.price)}</p>
           ${hasDiscount ? `<span class="price-original">${formatRp(p.original_price)}</span>` : ''}
         </div>
+        ${p.colorSwatches && p.colorSwatches.length > 0 ? `
+        <div class="card-swatches">
+          ${p.colorSwatches.slice(0, CARD_SWATCH_MAX).map(g => `
+            <div class="card-swatch ${g.allUnavailable ? 'unavailable' : ''}" onclick="event.stopPropagation(); toggleCardSwatch(this)">
+              <div class="card-swatch-inner">${g.image_url ? `<img src="${g.image_url}" alt="${g.color_name}" loading="lazy">` : ''}</div>
+              <div class="card-swatch-popup" onclick="event.stopPropagation()">
+                <img src="${g.image_url || coverUrl || ''}" alt="${g.color_name}" loading="lazy">
+                <span>${g.color_name}</span>
+              </div>
+            </div>
+          `).join('')}
+          ${p.colorSwatches.length > CARD_SWATCH_MAX ? `<span class="card-swatch-more">+${p.colorSwatches.length - CARD_SWATCH_MAX}</span>` : ''}
+        </div>` : ''}
       </div>
     </div>
   `;}).join('');
