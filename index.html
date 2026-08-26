@@ -483,7 +483,7 @@
         <line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>
       </svg>
     </button>
-    <img class="nav-logo-img" src="assets/logo.png" alt="Dwie Foss" onclick="showPage('shop')">
+    <img class="nav-logo-img" src="/assets/logo.png" alt="Dwie Foss" onclick="showPage('shop')">
     <div class="nav-right">
       <button class="nav-cart" onclick="showPage('cart')">
         <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
@@ -505,7 +505,7 @@
 <!-- MOBILE MENU -->
 <div class="mobile-menu" id="mobileMenu">
   <div class="mobile-menu-header">
-    <img class="mobile-logo-img" src="assets/logo.png" alt="Dwie Foss">
+    <img class="mobile-logo-img" src="/assets/logo.png" alt="Dwie Foss">
     <button class="mobile-menu-close" onclick="closeMobileMenu()">×</button>
   </div>
   <div class="mobile-menu-links" id="mobileMenuLinks">
@@ -1330,7 +1330,9 @@ function showPage(name) {
   // tombol back/forward (popstate) -- kalau tidak, akan bikin loop/duplikat.
   if (!restoringFromPopState) {
     const state = buildPageHistoryState(name);
-    const url = isAdminPage ? window.location.pathname : '/';
+    let url = '/';
+    if (isAdminPage) url = window.location.pathname;
+    else if (name === 'detail' && currentProduct) url = '/produk/' + (productSlugMap.idToSlug[currentProduct.id] || currentProduct.id);
     // Ganti (bukan tambah) entri kalau masih di halaman toko yang sama --
     // supaya ganti-ganti kategori/pencarian tidak bikin banyak langkah back
     // yang harus ditekan cuma buat keluar dari halaman toko.
@@ -1494,6 +1496,40 @@ function renderSkeletons() {
   `).join('');
 }
 
+// ── SLUG LINK PRODUK ──
+// Link produk pakai nama produk (bukan cuma UUID) supaya kelihatan rapi & bisa
+// dipercaya saat dikirim ke calon pembeli. Slug dihitung sendiri di browser dari
+// brand+nama (bukan kolom baru di database) -- kalau ada nama yang sama persis,
+// produk dengan id lebih kecil (urutan tetap, tidak bergantung urutan hasil query)
+// dapat slug polos, sisanya dapat akhiran -2, -3, dst.
+function slugify(str) {
+  return (str || '').toString().toLowerCase()
+    .normalize('NFKD').replace(new RegExp('[\\u0300-\\u036f]', 'g'), '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function buildProductSlugMap(products) {
+  const groups = {};
+  products.forEach(p => {
+    const base = slugify(`${p.brand} ${p.name}`) || p.id;
+    (groups[base] = groups[base] || []).push(p.id);
+  });
+  const slugToId = {};
+  const idToSlug = {};
+  Object.keys(groups).forEach(base => {
+    const ids = groups[base].sort();
+    ids.forEach((id, i) => {
+      const slug = i === 0 ? base : `${base}-${i + 1}`;
+      slugToId[slug] = id;
+      idToSlug[id] = slug;
+    });
+  });
+  return { slugToId, idToSlug };
+}
+
+let productSlugMap = { slugToId: {}, idToSlug: {} };
+
 // ── LOAD & RENDER PRODUCTS ──
 async function loadProducts() {
   renderSkeletons();
@@ -1524,6 +1560,7 @@ async function loadProducts() {
     });
   }
   const products = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null, colorSwatches: swatchMap[p.id] || [] }));
+  productSlugMap = buildProductSlugMap(products);
 
   allProducts = products;
   filteredProducts = products;
@@ -3744,6 +3781,26 @@ window.addEventListener('scroll', () => {
 const path = window.location.pathname;
 if (path === '/admin' || path === '/admin/') {
   goAdmin();
+} else if (path.startsWith('/produk/')) {
+  // Link produk yang dikirim ke calon pembeli (mis. lewat WhatsApp) -- cari produknya
+  // lewat slug di URL, baru tampilkan detailnya. Sembunyikan dulu halaman toko yang
+  // aktif secara default di markup, supaya tidak sempat kelihatan sekilas sebelum
+  // detail produknya siap.
+  document.getElementById('page-shop').classList.remove('active');
+  const slug = decodeURIComponent(path.slice('/produk/'.length).replace(/\/$/, ''));
+  loadProducts().then(() => {
+    // Daftarkan dulu entri toko di riwayat (seolah dari toko), supaya tombol back
+    // dari halaman produk ini balik ke toko -- bukan langsung keluar situs.
+    history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
+    const id = productSlugMap.slugToId[slug];
+    if (id) {
+      openDetail(id);
+    } else {
+      showToast('Produk tidak ditemukan');
+      showPage('shop');
+    }
+  });
+  trackPageVisit();
 } else {
   history.replaceState({ page: 'shop', category: currentCategory, search: currentSearch }, '', '/');
   loadProducts();
