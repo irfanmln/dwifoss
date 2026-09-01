@@ -2394,6 +2394,24 @@ function localDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// Supabase/PostgREST batasi hasil .select() maksimal 1000 baris per query walau
+// tidak ditulis .limit() sama sekali -- kalau tidak di-loop, begitu jumlah kunjungan
+// sudah lewat 1000, baris-baris TERBARU (termasuk hari ini) malah tidak ikut
+// kehitung karena kepotong duluan. Tarik semua baris per 1000 sampai habis.
+async function fetchAllRows(table, columns) {
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+  while (true) {
+    const { data, error } = await sb.from(table).select(columns).range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+    all = all.concat(data);
+    if (data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all, error: null };
+}
+
 async function loadVisitorStats() {
   const grid = document.getElementById('visitorStatsGrid');
   if (!grid) return;
@@ -2402,7 +2420,7 @@ async function loadVisitorStats() {
   // untuk skala pengunjung saat ini (lihat perhitungan storage yang sudah
   // dibahas). Kalau nanti datanya sudah sangat besar, pertimbangkan bikin
   // tabel rangkuman harian terpisah alih-alih query semua baris mentah.
-  const { data, error } = await sb.from('page_visits').select('visitor_id, created_at');
+  const { data, error } = await fetchAllRows('page_visits', 'visitor_id, created_at');
   if (error) {
     grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--warm-gray)">Gagal memuat statistik</p>';
     console.error(error);
