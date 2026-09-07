@@ -1223,6 +1223,22 @@ const sb = createClient(
   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVoam5rY3ZvempkbHNjdXFmcXpiIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODIzMzMyMDYsImV4cCI6MjA5NzkwOTIwNn0.N0OQCgYDtw2iOWZk3FbyqAnXgpv12pI8H3titSoWZg0'
 );
 
+// ── UPLOAD GAMBAR KE R2 (via Worker proxy, bukan Supabase Storage) ──
+// Upload baru lewat Worker supaya bandwidth gambar tidak lagi makan kuota
+// Supabase. GANTI "GANTI_DENGAN_UPLOAD_SECRET" dengan UPLOAD_SECRET asli.
+const R2_UPLOAD_URL = 'https://dwiefoss-upload.irfanm991.workers.dev/upload';
+const R2_UPLOAD_SECRET = 'bfa7912ceb92bde2d160195e86b56667518b109c1be9c60913f666afe5ff29a9';
+async function uploadToR2(blob, key) {
+  const res = await fetch(
+    `${R2_UPLOAD_URL}?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(blob.type || 'image/webp')}`,
+    { method: 'POST', headers: { 'x-upload-secret': R2_UPLOAD_SECRET }, body: blob }
+  );
+  if (!res.ok) throw new Error('Upload R2 gagal: ' + res.status);
+  const { url } = await res.json();
+  if (!url) throw new Error('Upload R2 tanpa URL');
+  return url;
+}
+
 // Paksa cek/refresh sesi login tiap kali tab dibuka kembali (misal admin buka panel
 // di HP lalu layar terkunci/pindah app cukup lama, token bisa kedaluwarsa saat kembali
 // dan Supabase auto-refresh timer-nya tidak jalan selagi tab di-background)
@@ -3134,9 +3150,10 @@ async function addBanner() {
 
   const { blob, ext } = await convertToWebp(pendingBannerFile.file, 0.82);
   const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
-  if (upErr) { showDbError(upErr, 'Gagal upload banner'); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
-  const url = sb.storage.from('products').getPublicUrl(fileName).data.publicUrl;
+  let url;
+  try {
+    url = await uploadToR2(blob, fileName);
+  } catch (upErr) { showDbError(upErr, 'Gagal upload banner'); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
 
   const nextOrder = banners.length > 0 ? Math.max(...banners.map(b => b.sort_order)) + 1 : 0;
   const { error } = await sb.from('banners').insert({ desktop_image_url: url, mobile_image_url: url, sort_order: nextOrder });
@@ -3264,10 +3281,10 @@ async function addProduct() {
         continue;
       }
       const fileName = `${productId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
-      if (upErr) { console.error(upErr); continue; }
-      const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-      await sb.from('product_images').insert({ product_id: productId, image_url: urlData.publicUrl, sort_order: order++ });
+      try {
+        const url = await uploadToR2(blob, fileName);
+        await sb.from('product_images').insert({ product_id: productId, image_url: url, sort_order: order++ });
+      } catch (upErr) { console.error(upErr); continue; }
     }
   }
 
@@ -3283,13 +3300,11 @@ async function addProduct() {
     for (const c of pendingColors) {
       let url = c.url || null;
       if (c.file) {
-        const { blob, ext } = await convertToWebp(c.file, 0.82);
-        const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: upErr } = await sb.storage.from('products').upload(fileName, blob, { contentType: blob.type });
-        if (!upErr) {
-          const { data: urlData } = sb.storage.from('products').getPublicUrl(fileName);
-          url = urlData.publicUrl;
-        }
+        try {
+          const { blob, ext } = await convertToWebp(c.file, 0.82);
+          const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+          url = await uploadToR2(blob, fileName);
+        } catch (upErr) { console.error(upErr); }
       }
       colorImageUrls[c._ck] = url;
     }
