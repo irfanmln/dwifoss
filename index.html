@@ -1236,6 +1236,12 @@ async function uploadToR2(blob, key) {
   if (!res.ok) throw new Error('Upload R2 gagal: ' + res.status);
   const { url } = await res.json();
   if (!url) throw new Error('Upload R2 tanpa URL');
+  // Dual-write (best-effort): simpan salinan dengan key SAMA ke Supabase juga,
+  // supaya fallback R2->Supabase berfungsi untuk file BARU di jaringan yang
+  // memblokir r2.dev. Kegagalan salinan diabaikan (R2 tetap sumber utama).
+  try {
+    await sb.storage.from('products').upload(key, blob, { contentType: blob.type || 'image/webp', upsert: true });
+  } catch (backupErr) { console.warn('Supabase backup upload skip:', backupErr); }
   return url;
 }
 
