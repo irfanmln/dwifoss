@@ -1251,15 +1251,16 @@ async function uploadToR2(blob, key) {
 // ISP), coba sekali lagi ke URL Supabase lama dengan path yang sama —
 // file aslinya masih ada di sana. Hanya pengunjung terdampak yang memakai
 // kuota Supabase, sisanya tetap gratis via R2.
-const R2_PUBLIC_BASE_IMG = 'https://pub-6c6bdb44140c425b838c5e00e38edd01.r2.dev';
+const R2_PUBLIC_BASE_IMG = 'https://dwiefoss-upload.irfanm991.workers.dev/img';
 const SUPABASE_STORAGE_BASE = 'https://ehjnkcvozjdlscuqfqzb.supabase.co/storage/v1/object/public/products';
 document.addEventListener('error', (e) => {
   const t = e.target;
   if (t && t.tagName === 'IMG' && !t.dataset.r2fallback) {
     const src = t.getAttribute('src') || '';
+    // URL Worker = BASE + '/img/' + key ; fallback = Supabase + '/' + key
     if (src.startsWith(R2_PUBLIC_BASE_IMG + '/')) {
       t.dataset.r2fallback = '1';
-      t.src = SUPABASE_STORAGE_BASE + src.slice(R2_PUBLIC_BASE_IMG.length);
+      t.src = SUPABASE_STORAGE_BASE + src.slice((R2_PUBLIC_BASE_IMG + '/img').length);
     }
   }
 }, true);

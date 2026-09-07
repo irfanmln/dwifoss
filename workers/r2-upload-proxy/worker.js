@@ -25,7 +25,13 @@
  *   POST /upload?key=<path/di/bucket.ext>&contentType=image/webp
  *   Header: x-upload-secret: <UPLOAD_SECRET>
  *   Body: bytes file (bukan multipart, langsung blob)
- *   -> 200 { "url": "https://pub-...r2.dev/<key>" }
+ *   -> 200 { "url": "<PUBLIC_BASE>/<key>" }
+ *
+ *   GET /img/<path/di/bucket.ext>
+ *   Serve publik langsung dari R2 (pengganti r2.dev yang diblokir sebagian
+ *   provider Indonesia). Header Cache-Control 1 tahun, key selalu unik per
+ *   upload sehingga aman immutable.
+ *   -> 200 image / 404 { "error": "Not found" }
  *
  * Batas: max ~10MB/file (foto WebP terkompres admin <1MB, aman).
  */
@@ -63,6 +69,37 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { headers: cors });
 
     const url = new URL(req.url);
+
+    // Serve gambar publik (pengganti r2.dev) — bisa dibuka semua provider.
+    if (req.method === "GET") {
+      const m = url.pathname.match(/^\/img\/(.+)$/);
+      if (!m) {
+        return new Response(JSON.stringify({ error: "Use POST /upload" }), {
+          status: 404, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      let key;
+      try { key = safeKey(decodeURIComponent(m[1])); } catch { key = null; }
+      if (!key) {
+        return new Response(JSON.stringify({ error: "Bad key" }), {
+          status: 400, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      const obj = await env.IMAGES.get(key);
+      if (!obj) {
+        return new Response(JSON.stringify({ error: "Not found" }), {
+          status: 404, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+      return new Response(obj.body, {
+        headers: {
+          ...cors,
+          "Content-Type": obj.httpMetadata?.contentType || "image/webp",
+          "Cache-Control": "public, max-age=31536000, immutable",
+        },
+      });
+    }
+
     if (req.method !== "POST" || url.pathname !== "/upload") {
       return new Response(JSON.stringify({ error: "Use POST /upload" }), {
         status: 404, headers: { ...cors, "Content-Type": "application/json" },
