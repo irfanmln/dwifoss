@@ -1239,6 +1239,25 @@ async function uploadToR2(blob, key) {
   return url;
 }
 
+// ── FALLBACK GAMBAR: R2 -> Supabase ──
+// Sebagian provider Indonesia (terbukti: XL) memblokir domain r2.dev.
+// Kalau <img> R2 gagal load (mis. ERR_CERT_AUTHORITY_INVALID dari blockpage
+// ISP), coba sekali lagi ke URL Supabase lama dengan path yang sama —
+// file aslinya masih ada di sana. Hanya pengunjung terdampak yang memakai
+// kuota Supabase, sisanya tetap gratis via R2.
+const R2_PUBLIC_BASE_IMG = 'https://pub-6c6bdb44140c425b838c5e00e38edd01.r2.dev';
+const SUPABASE_STORAGE_BASE = 'https://ehjnkcvozjdlscuqfqzb.supabase.co/storage/v1/object/public/products';
+document.addEventListener('error', (e) => {
+  const t = e.target;
+  if (t && t.tagName === 'IMG' && !t.dataset.r2fallback) {
+    const src = t.getAttribute('src') || '';
+    if (src.startsWith(R2_PUBLIC_BASE_IMG + '/')) {
+      t.dataset.r2fallback = '1';
+      t.src = SUPABASE_STORAGE_BASE + src.slice(R2_PUBLIC_BASE_IMG.length);
+    }
+  }
+}, true);
+
 // Paksa cek/refresh sesi login tiap kali tab dibuka kembali (misal admin buka panel
 // di HP lalu layar terkunci/pindah app cukup lama, token bisa kedaluwarsa saat kembali
 // dan Supabase auto-refresh timer-nya tidak jalan selagi tab di-background)
