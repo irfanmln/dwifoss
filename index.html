@@ -10,6 +10,14 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,500;1,300&family=DM+Sans:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<!-- Google tag (gtag.js) GA4 -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-5WR880P0SL"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-5WR880P0SL');
+</script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
   :root {
@@ -743,7 +751,7 @@
       <div class="bank-detail">
         Click the button below to confirm your order via WhatsApp — we'll send the payment details & shipping cost there.
       </div>
-      <a id="successWaBtn" href="#" target="_blank" rel="noopener" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Confirm by WhatsApp</a>
+      <a id="successWaBtn" href="#" target="_blank" rel="noopener" onclick="trackGA('generate_lead',{method:'whatsapp'})" class="btn-primary" style="display:block;text-align:center;text-decoration:none;margin-top:16px;background:#25D366">Confirm by WhatsApp</a>
     </div>
 
     <!-- Produk dibeli -->
@@ -1285,6 +1293,18 @@ const PAGE_SIZE = 24;
 const PAGINATION_WINDOW_SIZE = 5;
 let paginationWindowStart = 1;
 
+// ── ANALYTICS (GA4) ──
+// Semua event dibungkus try/catch + cek typeof agar halaman tidak pernah
+// rusak kalau tag Google diblokir (adblock) atau gagal dimuat.
+function trackGA(name, params) {
+  try {
+    if (typeof gtag === 'function') gtag('event', name, Object.assign({ currency: 'IDR' }, params || {}));
+  } catch (e) { /* abaikan */ }
+}
+function gaItem(p, qty) {
+  return { item_id: String(p.id || ''), item_name: [p.brand, p.name].filter(Boolean).join(' '), item_brand: p.brand || '', price: Number(p.price) || 0, quantity: qty || 1 };
+}
+
 // ── FORMAT RUPIAH ──
 function formatRp(n) {
   return 'IDR ' + Number(n).toLocaleString('id-ID');
@@ -1352,7 +1372,7 @@ function showPage(name) {
   document.getElementById('page-' + name).classList.add('active');
   window.scrollTo(0, 0);
   if (name === 'cart') renderCart();
-  if (name === 'checkout') { renderCheckoutSummary(); populateWilayahProvinces(); }
+  if (name === 'checkout') { renderCheckoutSummary(); populateWilayahProvinces(); trackGA('begin_checkout', { value: cart.reduce((s, i) => s + i.price * i.qty, 0), items: cart.map(i => gaItem(i, i.qty)) }); }
 
   // Keluar dari halaman admin ke halaman lain: sinkronkan URL balik ke root
   // supaya refresh browser tidak salah nyangkut ke routing /admin
@@ -1384,6 +1404,9 @@ function showPage(name) {
     } else {
       history.pushState(state, '', url);
     }
+    // SPA: page_view otomatis GA4 hanya jalan saat load awal, jadi kirim
+    // manual tiap navigasi internal (kecuali saat tombol back/forward).
+    trackGA('page_view', { page_path: location.pathname });
   }
 }
 
@@ -1428,6 +1451,7 @@ window.addEventListener('popstate', (event) => {
   } else {
     showPage('shop');
   }
+  trackGA('page_view', { page_path: location.pathname });
   restoringFromPopState = false;
 });
 
@@ -1860,6 +1884,7 @@ async function openDetail(id) {
   document.getElementById('detailBrand').textContent = currentProduct.brand;
   document.getElementById('detailName').textContent = currentProduct.name;
   document.getElementById('detailDesc').innerHTML = formatDescription(currentProduct.description);
+  trackGA('view_item', { value: Number(currentProduct.price) || 0, items: [gaItem(currentProduct, 1)] });
   const catEl = document.getElementById('detailCategory');
   if (catEl) {
     const cat = currentProduct.category_id ? allCategories.find(c => c.id === currentProduct.category_id) : null;
@@ -2159,6 +2184,7 @@ function addToCart(product, variant = null) {
     });
   }
   saveCart();
+  trackGA('add_to_cart', { value: Number(variant ? variant.price : product.price) || 0, items: [gaItem({ id: product.id, brand: product.brand, name: product.name, price: variant ? variant.price : product.price }, 1)] });
 }
 
 function addToCartFromDetail() {
@@ -2324,6 +2350,9 @@ async function placeOrder() {
   btn.textContent = 'Create Order';
 
   if (error) { showToast('Failed to create order. Please try again.'); console.error(error); return; }
+
+  // Konversi utama: order berhasil dibuat (langkah terakhir sebelum WA)
+  trackGA('purchase', { transaction_id: orderNo, value: subtotal, items: cart.map(i => gaItem(i, i.qty)) });
 
   // Isi halaman sukses
   document.getElementById('successOrderNo').textContent = orderNo;
