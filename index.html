@@ -3113,6 +3113,44 @@ enablePointerReorder(
   }
 );
 
+// ── HEIC/HEIF (foto iPhone) ──
+// iPhone default menyimpan .HEIC yang tidak bisa di-decode <img>/canvas di
+// sebagian browser. Tanpa penanganan, produk tersimpan tanpa foto (placeholder 👜)
+// dan tidak ada pesan error. normalizeImageFile mengubah HEIC jadi JPEG dulu.
+function isHeicFile(f) {
+  if (!f) return false;
+  const t = (f.type || '').toLowerCase();
+  const n = (f.name || '').toLowerCase();
+  return t === 'image/heic' || t === 'image/heif' || t === 'image/heic-sequence' || t === 'image/heif-sequence' || n.endsWith('.heic') || n.endsWith('.heif');
+}
+let _heicConverterPromise = null;
+function ensureHeicConverter() {
+  if (typeof heic2any === 'function') return Promise.resolve();
+  if (_heicConverterPromise) return _heicConverterPromise;
+  _heicConverterPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/heic2any@0.0.4/dist/heic2any.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error('Gagal memuat konverter HEIC'));
+    document.head.appendChild(s);
+  });
+  return _heicConverterPromise;
+}
+// Mengembalikan File siap diproses (HEIC dikonversi ke JPEG).
+// Throw dengan pesan yang ramah ditampilkan ke admin jika gagal.
+async function normalizeImageFile(file) {
+  if (!isHeicFile(file)) return file;
+  try {
+    await ensureHeicConverter();
+    const out = await heic2any({ blob: file, toType: 'image/jpeg', quality: 0.82 });
+    const jpeg = Array.isArray(out) ? out[0] : out;
+    const name = (file.name || 'foto').replace(/\.(heic|heif)$/i, '') + '.jpg';
+    return new File([jpeg], name, { type: 'image/jpeg' });
+  } catch (e) {
+    throw new Error('Foto ' + (file.name || 'tersebut') + ' berformat HEIC iPhone yang tidak terbaca. Ubah ke JPG dulu (Pengaturan iPhone → Kamera → Format → Paling Kompatibel) lalu coba lagi.');
+  }
+}
+
 // ── CONVERT TO WEBP ──
 // Kompres & resize gambar sebelum upload. Mengembalikan {blob, ext} — ext mengikuti
 // format blob yang BENAR-BENAR dihasilkan browser, bukan diasumsikan selalu webp.
@@ -3192,9 +3230,11 @@ let pendingBannerFile = null; // {file, url}
 function handleBannerFileSelect(event) {
   const file = event.target.files[0];
   if (!file) return;
-  pendingBannerFile = { file, url: URL.createObjectURL(file) };
-  document.getElementById('bannerPreview').innerHTML = `<img src="${pendingBannerFile.url}" style="width:100%;max-width:400px;aspect-ratio:2/1;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
   event.target.value = '';
+  normalizeImageFile(file).then(normalized => {
+    pendingBannerFile = { file: normalized, url: URL.createObjectURL(normalized) };
+    document.getElementById('bannerPreview').innerHTML = `<img src="${pendingBannerFile.url}" style="width:100%;max-width:400px;aspect-ratio:2/1;object-fit:cover;display:block;margin-top:8px;border:1px solid var(--stone)">`;
+  }).catch(e => showToast(e.message));
 }
 
 async function addBanner() {
@@ -3204,10 +3244,10 @@ async function addBanner() {
   btn.disabled = true;
   btn.textContent = 'Menyimpan...';
 
-  const { blob, ext } = await convertToWebp(pendingBannerFile.file, 0.82);
-  const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-  let url;
+  let blob, ext, url;
   try {
+    ({ blob, ext } = await convertToWebp(await normalizeImageFile(pendingBannerFile.file), 0.82));
+    const fileName = `_site/banner-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
     url = await uploadToR2(blob, fileName);
   } catch (upErr) { showDbError(upErr, 'Gagal upload banner'); btn.disabled = false; btn.textContent = 'Tambah Banner'; return; }
 
@@ -3327,10 +3367,14 @@ async function addProduct() {
 
     btn.textContent = 'Mengupload foto...';
     let order = 0;
+    const failedPhotos = [];
     for (const item of pendingPhotos) {
       let blob, ext;
       if (item.file) {
-        ({ blob, ext } = await convertToWebp(item.file, 0.82));
+        // Satu file rusak (mis. HEIC lolos) tidak boleh menggugurkan foto lain
+        try {
+          ({ blob, ext } = await convertToWebp(await normalizeImageFile(item.file), 0.82));
+        } catch (convErr) { console.error(convErr); failedPhotos.push(item.file.name || 'foto'); continue; }
       } else {
         // Foto lama (dari edit, tidak diubah) — skip re-upload, insert ulang dengan order baru
         await sb.from('product_images').insert({ product_id: productId, image_url: item.url, sort_order: order++ });
@@ -3340,7 +3384,16 @@ async function addProduct() {
       try {
         const url = await uploadToR2(blob, fileName);
         await sb.from('product_images').insert({ product_id: productId, image_url: url, sort_order: order++ });
-      } catch (upErr) { console.error(upErr); continue; }
+      } catch (upErr) { console.error(upErr); failedPhotos.push(item.file.name || 'foto'); continue; }
+    }
+    if (failedPhotos.length > 0) showToast(`${failedPhotos.length} foto gagal diupload: ${failedPhotos.slice(0, 3).join(', ')}${failedPhotos.length > 3 ? '…' : ''}`);
+    // Produk baru tanpa satu pun foto yang berhasil = jangan tinggalkan produk yatim
+    if (!editId && order === 0) {
+      await sb.from('products').delete().eq('id', productId);
+      showToast('Semua foto gagal diupload — produk tidak disimpan. Coba lagi dengan foto JPG.');
+      btn.disabled = false;
+      btn.textContent = 'Tambah Produk';
+      return;
     }
   }
 
@@ -3357,10 +3410,10 @@ async function addProduct() {
       let url = c.url || null;
       if (c.file) {
         try {
-          const { blob, ext } = await convertToWebp(c.file, 0.82);
+          const { blob, ext } = await convertToWebp(await normalizeImageFile(c.file), 0.82);
           const fileName = `${productId}/variants/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
           url = await uploadToR2(blob, fileName);
-        } catch (upErr) { console.error(upErr); }
+        } catch (upErr) { console.error(upErr); showToast('Foto warna ' + (c.color_name || '') + ' gagal diupload — warna tersimpan tanpa foto'); }
       }
       colorImageUrls[c._ck] = url;
     }
@@ -3421,11 +3474,17 @@ let pendingPhotos = []; // [{file, url, id}] — file=null jika foto lama
 
 const MAX_PRODUCT_PHOTOS = 10;
 
-function addPendingPhotos(files) {
+async function addPendingPhotos(files) {
   const remaining = MAX_PRODUCT_PHOTOS - pendingPhotos.length;
   if (remaining <= 0) { showToast(`Maksimal ${MAX_PRODUCT_PHOTOS} foto per produk`); return; }
   const toAdd = files.slice(0, remaining);
-  toAdd.forEach(f => pendingPhotos.push({ file: f, url: URL.createObjectURL(f), id: Date.now() + Math.random() }));
+  // Konversi HEIC (iPhone) ke JPEG dulu — yang gagal di-skip dengan pesan jelas
+  const ready = [];
+  for (const f of toAdd) {
+    try { ready.push(await normalizeImageFile(f)); }
+    catch (e) { showToast(e.message); }
+  }
+  ready.forEach(f => pendingPhotos.push({ file: f, url: URL.createObjectURL(f), id: Date.now() + Math.random() }));
   if (files.length > toAdd.length) showToast(`Maksimal ${MAX_PRODUCT_PHOTOS} foto per produk — sebagian foto tidak ditambahkan`);
   renderPhotoPreview();
 }
@@ -3441,7 +3500,7 @@ function handleDragLeave(e) { document.getElementById('photoUploadZone').classLi
 function handleDrop(e) {
   e.preventDefault();
   document.getElementById('photoUploadZone').classList.remove('dragover');
-  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/'));
+  const files = Array.from(e.dataTransfer.files).filter(f => f.type.startsWith('image/') || isHeicFile(f));
   addPendingPhotos(files);
 }
 
@@ -3496,9 +3555,13 @@ function updateVariantColorField(idx, value) {
 function handleVariantColorPhotoSelect(idx, event) {
   const f = event.target.files[0];
   if (!f) return;
-  pendingColors[idx].file = f;
-  pendingColors[idx].url = URL.createObjectURL(f);
-  renderVariantAdminList();
+  event.target.value = '';
+  normalizeImageFile(f).then(normalized => {
+    if (pendingColors[idx].url) URL.revokeObjectURL(pendingColors[idx].url);
+    pendingColors[idx].file = normalized;
+    pendingColors[idx].url = URL.createObjectURL(normalized);
+    renderVariantAdminList();
+  }).catch(e => showToast(e.message));
 }
 
 function addVariantSizeRow() {
