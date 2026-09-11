@@ -1236,12 +1236,16 @@ const sb = createClient(
 // Upload baru lewat Worker supaya bandwidth gambar tidak lagi makan kuota
 // Supabase. GANTI "GANTI_DENGAN_UPLOAD_SECRET" dengan UPLOAD_SECRET asli.
 const R2_UPLOAD_URL = 'https://dwiefoss-upload.irfanm991.workers.dev/upload';
-const R2_UPLOAD_SECRET = 'bfa7912ceb92bde2d160195e86b56667518b109c1be9c60913f666afe5ff29a9';
+// Upload memakai token login admin (Supabase session), BUKAN secret statis —
+// secret statis di source publik bisa dibaca siapa pun dan dipakai spam upload.
 async function uploadToR2(blob, key) {
+  const { data: { session } } = await sb.auth.getSession();
+  if (!session || !session.access_token) throw new Error('Sesi admin habis — login ulang lalu coba lagi');
   const res = await fetch(
     `${R2_UPLOAD_URL}?key=${encodeURIComponent(key)}&contentType=${encodeURIComponent(blob.type || 'image/webp')}`,
-    { method: 'POST', headers: { 'x-upload-secret': R2_UPLOAD_SECRET }, body: blob }
+    { method: 'POST', headers: { 'Authorization': 'Bearer ' + session.access_token }, body: blob }
   );
+  if (res.status === 401) throw new Error('Tidak punya akses upload (bukan admin) — login ulang sebagai admin');
   if (!res.ok) throw new Error('Upload R2 gagal: ' + res.status);
   const { url } = await res.json();
   if (!url) throw new Error('Upload R2 tanpa URL');

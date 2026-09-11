@@ -11,19 +11,24 @@
  *   2. Paste SELURUH file ini ke editor Worker > Deploy
  *   3. Worker > Settings > Bindings > Add > R2 bucket:
  *        Variable name = IMAGES, Bucket = dwifoss-images
- *   4. Worker > Settings > Variables & Secrets, tambah Secret:
- *        UPLOAD_SECRET = <buat sandi acak panjang, mis 32 karakter>
- *        PUBLIC_BASE   = https://pub-6c6bdb44140c425b838c5e00e38edd01.r2.dev
- *      (Var biasa boleh, tapi Secret lebih aman untuk UPLOAD_SECRET)
+ *   4. Worker > Settings > Variables & Secrets, tambah:
+ *        SUPABASE_URL      = https://ehjnkcvozjdlscuqfqzb.supabase.co
+ *        SUPABASE_ANON_KEY = <anon key dari index.html, sebagai Secret>
+ *        ADMIN_EMAILS      = <email admin, koma-pemisah jika >1, sebagai Secret>
+ *      (UPLOAD_SECRET lama & PUBLIC_BASE tetap seperti sebelumnya)
  *   5. Settings > Triggers: catat URL https://dwiefoss-upload.<akun>.workers.dev
- *   6. Di index.html set: const R2_UPLOAD_URL = "<url>/upload";
- *      const R2_UPLOAD_SECRET = "<sama dengan UPLOAD_SECRET>";
- *      (disimpan di kode admin — idealnya nanti pindah ke login session,
- *       tapi untuk sekarang jauh lebih aman daripada secret R2 di frontend)
+ *   6. Di index.html: uploadToR2 mengirim token login admin (Bearer),
+ *      TIDAK lagi memakai R2_UPLOAD_SECRET di source code.
+ *
+ * MASA TRANSISI (agar upload admin tidak putus saat deploy):
+ *   Worker v2 ini menerima DUA cara auth — token admin (baru) ATAU
+ *   x-upload-secret lama. Setelah client baru live & upload admin teruji,
+ *   hapus variable LEGACY_UPLOAD_SECRET di bawah (cukup hapus dari dashboard)
+ *   agar jalur secret-statis mati total, lalu rotate UPLOAD_SECRET.
  *
  * API:
  *   POST /upload?key=<path/di/bucket.ext>&contentType=image/webp
- *   Header: x-upload-secret: <UPLOAD_SECRET>
+ *   Header: Authorization: Bearer <supabase access_token admin>
  *   Body: bytes file (bukan multipart, langsung blob)
  *   -> 200 { "url": "<PUBLIC_BASE>/<key>" }
  *
@@ -50,7 +55,7 @@ function corsHeaders(req) {
   return {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, x-upload-secret",
+    "Access-Control-Allow-Headers": "Content-Type, Authorization, x-upload-secret",
     "Access-Control-Max-Age": "86400",
   };
 }
@@ -61,6 +66,28 @@ function safeKey(raw) {
   if (!k || k.includes("..")) return null;
   if (!/^[\w\-./]+$/.test(k)) return null;
   return k;
+}
+
+// Validasi token login Supabase TANPA crypto di Worker: tanya langsung ke
+// Auth server (GET /auth/v1/user). Token valid -> balas 200 + data user.
+// Upload admin jarang (bukan per-pengunjung), latency tambahan ~100-300ms OK.
+async function isAdminToken(req, env, token) {
+  try {
+    const base = (env.SUPABASE_URL || "").replace(/\/$/, "");
+    const anon = env.SUPABASE_ANON_KEY || "";
+    const allow = (env.ADMIN_EMAILS || "")
+      .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+    if (!base || !anon || allow.length === 0) return false; // fail closed
+    const r = await fetch(`${base}/auth/v1/user`, {
+      headers: { apikey: anon, Authorization: `Bearer ${token}` },
+    });
+    if (!r.ok) return false;
+    const user = await r.json();
+    const email = (user && user.email ? String(user.email) : "").toLowerCase();
+    return email !== "" && allow.includes(email);
+  } catch {
+    return false;
+  }
 }
 
 export default {
@@ -106,7 +133,25 @@ export default {
       });
     }
 
-    if (req.headers.get("x-upload-secret") !== env.UPLOAD_SECRET) {
+    // AUTH: token login admin (baru) didahulukan, secret statis (lama)
+    // hanya sebagai jembatan selama masa transisi deploy.
+    const authHeader = req.headers.get("Authorization") || "";
+    const bearer = authHeader.startsWith("Bearer ")
+      ? authHeader.slice(7).trim()
+      : "";
+    let authorized = false;
+    if (bearer) {
+      authorized = await isAdminToken(req, env, bearer);
+      if (!authorized) {
+        return new Response(JSON.stringify({ error: "Sesi habis atau bukan admin — login ulang" }), {
+          status: 401, headers: { ...cors, "Content-Type": "application/json" },
+        });
+      }
+    } else if (env.LEGACY_UPLOAD_SECRET &&
+               req.headers.get("x-upload-secret") === env.LEGACY_UPLOAD_SECRET) {
+      authorized = true; // TODO(transisi): hapus blok ini setelah client baru live
+    }
+    if (!authorized) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401, headers: { ...cors, "Content-Type": "application/json" },
       });
