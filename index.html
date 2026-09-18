@@ -1302,6 +1302,15 @@ let filteredProducts = [];
 let currentPage = 1;
 let currentCategory = 'all';
 let currentSearch = '';
+// Singkatan brand yang umum dipakai buyer → di-expand ke nama panjang
+// sebelum dicocokkan, supaya "tb"/"mk"/"ks"/"mj"/"lc" tetap ketemu.
+const BRAND_ALIASES = {
+  tb: ['tory', 'burch'],
+  mk: ['michael', 'kors'],
+  ks: ['kate', 'spade'],
+  mj: ['marc', 'jacobs'],
+  lc: ['longchamp']
+};
 const PAGE_SIZE = 24;
 const PAGINATION_WINDOW_SIZE = 5;
 let paginationWindowStart = 1;
@@ -1703,7 +1712,9 @@ function applyFilter() {
   if (currentSearch) {
     // Token-AND lintas brand+nama: tiap kata wajib ada di gabungan "brand name",
     // supaya "coach tabby" tetap ketemu walau brand & nama tersimpan terpisah.
-    const tokens = currentSearch.toLowerCase().split(/\s+/).filter(Boolean);
+    // Singkatan brand umum buyer (TB/MK/KS/MJ/LC) di-expand ke nama panjangnya.
+    const tokens = currentSearch.toLowerCase().split(/\s+/).filter(Boolean)
+      .flatMap(t => BRAND_ALIASES[t] || [t]);
     result = result.filter(p => {
       const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
       return tokens.every(t => hay.includes(t));
@@ -3017,8 +3028,9 @@ function renderAdminProductsTable() {
     products = products.filter(p => ids.includes(p.category_id));
   }
   if (q) {
-    // Sama seperti search toko: token-AND lintas brand+nama ("coach tabby" tetap ketemu).
-    const tokens = q.split(/\s+/).filter(Boolean);
+    // Sama seperti search toko: token-AND lintas brand+nama ("coach tabby" tetap ketemu),
+    // plus expand singkatan brand (TB/MK/KS/MJ/LC).
+    const tokens = q.split(/\s+/).filter(Boolean).flatMap(t => BRAND_ALIASES[t] || [t]);
     products = products.filter(p => {
       const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
       return tokens.every(t => hay.includes(t));
