@@ -1311,17 +1311,6 @@ const BRAND_ALIASES = {
   mj: ['marc', 'jacobs'],
   lc: ['longchamp']
 };
-// Kata generik (tas/bag/selempang) diabaikan — hampir semua produk adalah tas,
-// jadi kata itu tidak menyaring apa pun dan hanya bikin nol hasil.
-// Sinonim Indonesia→Inggris (dompet→wallet dst) karena nama produk berbahasa Inggris.
-const SEARCH_STOPWORDS = new Set(['tas', 'bag', 'bags', 'selempang']);
-const SEARCH_SYNONYMS = { dompet: 'wallet', jam: 'watch', kacamata: 'sunglasses' };
-function tokenizeSearch(query) {
-  return query.toLowerCase().split(/\s+/).filter(Boolean)
-    .flatMap(t => BRAND_ALIASES[t] || [t])
-    .map(t => SEARCH_SYNONYMS[t] || t)
-    .filter(t => !SEARCH_STOPWORDS.has(t));
-}
 const PAGE_SIZE = 24;
 const PAGINATION_WINDOW_SIZE = 5;
 let paginationWindowStart = 1;
@@ -1723,9 +1712,9 @@ function applyFilter() {
   if (currentSearch) {
     // Token-AND lintas brand+nama: tiap kata wajib ada di gabungan "brand name",
     // supaya "coach tabby" tetap ketemu walau brand & nama tersimpan terpisah.
-    // Singkatan brand umum buyer (TB/MK/KS/MJ/LC) di-expand ke nama panjangnya,
-    // kata generik (tas/bag) diabaikan, sinonim ID→EN dipetakan (dompet→wallet).
-    const tokens = tokenizeSearch(currentSearch);
+    // Singkatan brand umum buyer (TB/MK/KS/MJ/LC) di-expand ke nama panjangnya.
+    const tokens = currentSearch.toLowerCase().split(/\s+/).filter(Boolean)
+      .flatMap(t => BRAND_ALIASES[t] || [t]);
     result = result.filter(p => {
       const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
       return tokens.every(t => hay.includes(t));
@@ -3040,8 +3029,8 @@ function renderAdminProductsTable() {
   }
   if (q) {
     // Sama seperti search toko: token-AND lintas brand+nama ("coach tabby" tetap ketemu),
-    // plus expand singkatan brand (TB/MK/KS/MJ/LC), abaikan kata generik, petakan sinonim.
-    const tokens = tokenizeSearch(q);
+    // plus expand singkatan brand (TB/MK/KS/MJ/LC).
+    const tokens = q.split(/\s+/).filter(Boolean).flatMap(t => BRAND_ALIASES[t] || [t]);
     products = products.filter(p => {
       const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
       return tokens.every(t => hay.includes(t));
