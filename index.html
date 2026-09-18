@@ -4,7 +4,16 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <meta name="google-site-verification" content="Lbj_Tr_5NGwgoKBPs14b2cHVhB74Q4yQGdwY41BusNU" />
-<title>DWIE FOSS — Tas & Aksesori Branded</title>
+<title>DWIE FOSS — Your Authentic Style Companion</title>
+<meta name="description" content="DWIE FOSS — Your Authentic Style Companion. Tas & aksesori branded 100% original dari official store, dengan store offline di Garut.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DWIE FOSS">
+<meta property="og:title" content="DWIE FOSS — Your Authentic Style Companion">
+<meta property="og:description" content="Tas & aksesori branded 100% original. Your Authentic Style Companion.">
+<meta property="og:url" content="https://www.dwiefoss.id/">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="DWIE FOSS — Your Authentic Style Companion">
+<meta name="twitter:description" content="Tas & aksesori branded 100% original. Your Authentic Style Companion.">
 <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/assets/favicon-180.png">
@@ -1692,11 +1701,13 @@ function applyFilter() {
   }
 
   if (currentSearch) {
-    const q = currentSearch.toLowerCase();
-    result = result.filter(p =>
-      (p.name && p.name.toLowerCase().includes(q)) ||
-      (p.brand && p.brand.toLowerCase().includes(q))
-    );
+    // Token-AND lintas brand+nama: tiap kata wajib ada di gabungan "brand name",
+    // supaya "coach tabby" tetap ketemu walau brand & nama tersimpan terpisah.
+    const tokens = currentSearch.toLowerCase().split(/\s+/).filter(Boolean);
+    result = result.filter(p => {
+      const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
+      return tokens.every(t => hay.includes(t));
+    });
   }
 
   filteredProducts = result;
@@ -3006,7 +3017,12 @@ function renderAdminProductsTable() {
     products = products.filter(p => ids.includes(p.category_id));
   }
   if (q) {
-    products = products.filter(p => (p.name && p.name.toLowerCase().includes(q)) || (p.brand && p.brand.toLowerCase().includes(q)));
+    // Sama seperti search toko: token-AND lintas brand+nama ("coach tabby" tetap ketemu).
+    const tokens = q.split(/\s+/).filter(Boolean);
+    products = products.filter(p => {
+      const hay = ((p.brand || '') + ' ' + (p.name || '')).toLowerCase();
+      return tokens.every(t => hay.includes(t));
+    });
   }
 
   if (products.length === 0) { tbody.innerHTML = `<tr><td colspan="5" class="empty-state">${q || categoryFilter ? 'Tidak ada produk yang cocok' : 'Belum ada produk'}</td></tr>`; return; }
