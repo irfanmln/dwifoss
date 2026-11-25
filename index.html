@@ -73,16 +73,20 @@
   .nav-cat-link.nav-cat-sale { color: #c0392b; }
   .nav-cat-link.nav-cat-sale:hover { color: #8e2a1e; }
   .nav-cat-link.nav-cat-sale.active { border-bottom-color: #c0392b; }
-    .nav-cat-link.nav-cat-flash { color: #e67e22; }
-    .nav-cat-link.nav-cat-flash:hover { color: #b85c0f; }
-    .nav-cat-link.nav-cat-flash.active { border-bottom-color: #e67e22; }
+  .nav-cat-link.nav-cat-yes { color: #058921; }
+  .nav-cat-link.nav-cat-yes:hover { color: #046c1a; }
+  .nav-cat-link.nav-cat-yes.active { border-bottom-color: #058921; }
+  .nav-cat-link.nav-cat-flash { color: #e67e22; }
+  .nav-cat-link.nav-cat-flash:hover { color: #b85c0f; }
+  .nav-cat-link.nav-cat-flash.active { border-bottom-color: #e67e22; }
   .nav-cat-group { position: relative; }
   .nav-cat-dropdown { display: none; position: absolute; top: 100%; left: 0; background: var(--white); border: 1px solid var(--stone); min-width: 190px; box-shadow: 0 8px 20px rgba(0,0,0,0.1); z-index: 250; flex-direction: column; padding: 4px 0; }
   .nav-cat-group:hover .nav-cat-dropdown { display: flex; }
   .nav-cat-dropdown .nav-cat-link { border-bottom: none; text-align: left; }
   .mobile-menu-sublink { padding-left: 28px !important; font-size: 12px !important; color: var(--warm-gray); }
+  .mobile-menu-link.mobile-menu-yes { color: #058921; }
   .mobile-menu-link.mobile-menu-sale { color: #c0392b; }
-    .mobile-menu-link.mobile-menu-flash { color: #e67e22; }
+  .mobile-menu-link.mobile-menu-flash { color: #e67e22; }
   .mobile-menu-parent-row { display: flex; align-items: center; border-bottom: 1px solid var(--stone); }
   .mobile-menu-parent-row .mobile-menu-link { flex: 1; border-bottom: none; }
   .mobile-menu-expand-btn { background: none; border: 1px solid var(--stone); border-radius: 6px; width: 36px; height: 36px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--espresso); transition: transform 0.2s, background 0.2s; }
@@ -146,7 +150,8 @@
   .product-price.price-sale { color: #c0392b; font-weight: 600; }
   .price-row { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
   .price-original { font-size: 11px; color: var(--warm-gray); text-decoration: line-through; }
-  .discount-badge { display: inline-block; font-size: 9px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 2px 6px; }
+  .discount-badge { display: inline-block; font-size: 9px; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; background: #c0392b; color: white; padding: 2px 6px; }
+  .discount-badge.yes-badge { background: #058921; }
   .discount-badge.flash-badge { background: #e67e22; }
   .product-badge { display: inline-block; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; background: var(--caramel); color: white; padding: 2px 7px; margin-bottom: 8px; }
   .card-swatches { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; justify-content: center; }
@@ -190,7 +195,7 @@
   .detail-price { font-size: 20px; font-weight: 500; margin-bottom: 24px; display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
   .detail-price-sale { color: #c0392b; font-weight: 600; }
   .detail-price-original { font-size: 15px; color: var(--warm-gray); text-decoration: line-through; font-weight: 400; }
-  .detail-discount-badge { font-size: 11px; letter-spacing: 1px; font-weight: 600; background: #c0392b; color: white; padding: 3px 8px; }
+  .detail-discount-badge { font-size: 11px; letter-spacing: 1px; font-weight: 600; text-transform: uppercase; background: #c0392b; color: white; padding: 3px 8px; }
   .detail-desc { font-size: 13px; line-height: 1.8; color: var(--espresso); margin-bottom: 32px; font-weight: 400; }
   .detail-desc strong { font-weight: 700; color: var(--espresso); }
 
@@ -928,9 +933,10 @@
           <label class="form-label">Status Sale</label>
           <select class="form-input" id="pSaleTier">
             <option value="">-- Normal (tidak sale) --</option>
-            <option value="flash">Flash Sale</option>
-            <option value="sale">Sale</option>
-            <option value="clearance">Clearance Sale</option>
+            <option value="year-end-sale">YEAR END SALE</option>
+            <option value="flash">FLASH SALE</option>
+            <option value="sale">SALE</option>
+            <option value="clearance">CLEARANCE SALE</option>
           </select>
         </div>
         <div class="form-group">
@@ -1627,24 +1633,41 @@ function buildProductSlugMap(products) {
 
 let productSlugMap = { slugToId: {}, idToSlug: {} };
 
+// Supabase/PostgREST batasi hasil .select() maksimal 1000 baris per query secara default.
+// Fungsi ini menarik seluruh baris per 1000 (paginasi range) sampai selesai agar data tidak terpotong.
+async function fetchAllRows(table, columns = '*', configureQuery = null) {
+  const pageSize = 1000;
+  let from = 0;
+  let all = [];
+  while (true) {
+    let q = sb.from(table).select(columns);
+    if (typeof configureQuery === 'function') {
+      q = configureQuery(q);
+    }
+    const { data, error } = await q.range(from, from + pageSize - 1);
+    if (error) return { data: null, error };
+    all = all.concat(data || []);
+    if (!data || data.length < pageSize) break;
+    from += pageSize;
+  }
+  return { data: all, error: null };
+}
+
 // ── LOAD & RENDER PRODUCTS ──
 async function loadProducts() {
   renderSkeletons();
-  const { data, error } = await sb.from('products').select('*').eq('is_active', true).order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  const { data, error } = await fetchAllRows('products', '*', q =>
+    q.eq('is_active', true).order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false })
+  );
   if (error) { showToast('Failed to load products'); return; }
 
-  // Ambil cover (foto sort_order 0) tiap produk. Sengaja TIDAK pakai .in('product_id', ids):
-  // dengan ratusan produk, daftar ID di URL query bisa kepanjangan (400 Bad Request), dan kalau
-  // filter berdasarkan produk-nya dilewati sekalipun, jumlah baris foto totalnya bisa kepotong
-  // di batas 1000 baris default Supabase kalau banyak produk punya beberapa foto. Filter
-  // sort_order=0 membatasi hasilnya persis 1 baris per produk, jadi kedua masalah itu tidak muncul.
-  const { data: covers } = await sb.from('product_images').select('product_id, image_url').eq('sort_order', 0);
+  // Ambil cover (foto sort_order 0) tiap produk. Gunakan fetchAllRows agar tidak terpotong batas 1000 baris Supabase.
+  const { data: covers } = await fetchAllRows('product_images', 'product_id, image_url', q => q.eq('sort_order', 0));
   const coverMap = {};
   if (covers) covers.forEach(c => { coverMap[c.product_id] = c.image_url; });
 
-  // Kelompokkan varian per warna (buat swatch kecil di kartu katalog) -- pola query
-  // sama seperti cover di atas: ambil semua baris sekaligus, tidak pakai .in('product_id', ids).
-  const { data: variantRows } = await sb.from('product_variants').select('product_id, color_name, image_url, is_available, sort_order').order('sort_order', { ascending: true });
+  // Kelompokkan varian per warna (buat swatch kecil di kartu katalog)
+  const { data: variantRows } = await fetchAllRows('product_variants', 'product_id, color_name, image_url, is_available, sort_order', q => q.order('sort_order', { ascending: true }));
   const swatchMap = {};
   if (variantRows) {
     variantRows.forEach(v => {
@@ -1700,6 +1723,7 @@ function toggleMobileCategory(categoryId, event) {
 function applyFilter() {
   let title = 'All Products';
   if (currentCategory === 'new-arrivals') title = 'New Arrivals';
+  else if (currentCategory === 'year-end-sale' || currentCategory === 'year_end') title = 'Year End Sale';
   else if (currentCategory === 'flash') title = 'Flash Sale';
   else if (currentCategory === 'sale') title = 'Sale';
   else if (currentCategory === 'clearance') title = 'Clearance Sale';
@@ -1711,6 +1735,7 @@ function applyFilter() {
 
   let result = allProducts;
   if (currentCategory === 'new-arrivals') result = result.filter(p => p.is_new_arrival);
+  else if (currentCategory === 'year-end-sale' || currentCategory === 'year_end') result = result.filter(p => ['year-end-sale', 'year_end', 'year-end', 'yes'].includes(p.sale_tier));
   else if (currentCategory === 'flash') result = result.filter(p => p.sale_tier === 'flash');
   else if (currentCategory === 'sale') result = result.filter(p => p.sale_tier === 'sale');
   else if (currentCategory === 'clearance') result = result.filter(p => p.sale_tier === 'clearance');
@@ -1799,7 +1824,8 @@ function renderProducts() {
   grid.innerHTML = pageItems.map(p => {
     const coverUrl = p.cover_url || null;
     const hasDiscount = p.original_price && p.original_price > p.price;
-    const isSale = hasDiscount || ['flash', 'sale', 'clearance'].includes(p.sale_tier);
+    const isYearEnd = ['year-end-sale', 'year_end', 'year-end', 'yes'].includes(p.sale_tier);
+    const isSale = hasDiscount || isYearEnd || ['flash', 'sale', 'clearance'].includes(p.sale_tier);
     const discountPct = hasDiscount ? Math.round((1 - p.price / p.original_price) * 100) : 0;
     return `
     <div class="product-card" onclick="openDetail('${p.id}')">
@@ -1808,10 +1834,11 @@ function renderProducts() {
         : `<div class="product-img-placeholder">👜</div>`}
       <div class="product-info">
         <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">
-          ${p.is_new_arrival ? `<span class="product-badge">New</span>` : ''}
-          ${p.sale_tier === 'flash' ? `<span class="discount-badge flash-badge">Flash Sale</span>` : ''}
-          ${p.sale_tier === 'sale' ? `<span class="discount-badge">Sale</span>` : ''}
-          ${p.sale_tier === 'clearance' ? `<span class="discount-badge">Clearance</span>` : ''}
+          ${p.is_new_arrival ? `<span class="product-badge">NEW</span>` : ''}
+          ${isYearEnd ? `<span class="discount-badge yes-badge">YEAR END SALE</span>` : ''}
+          ${p.sale_tier === 'flash' ? `<span class="discount-badge flash-badge">FLASH SALE</span>` : ''}
+          ${p.sale_tier === 'sale' ? `<span class="discount-badge">SALE</span>` : ''}
+          ${p.sale_tier === 'clearance' ? `<span class="discount-badge">CLEARANCE SALE</span>` : ''}
           ${p.badge ? `<span class="product-badge">${p.badge}</span>` : ''}
         </div>
         <p class="product-brand">${p.brand}</p>
@@ -1906,7 +1933,7 @@ function variantText(item) {
 
 function priceHtml(price, originalPrice) {
   const hasDiscount = originalPrice && originalPrice > price;
-  const isSale = hasDiscount || (typeof currentProduct !== 'undefined' && currentProduct && ['flash', 'sale', 'clearance'].includes(currentProduct.sale_tier));
+  const isSale = hasDiscount || (typeof currentProduct !== 'undefined' && currentProduct && ['flash', 'sale', 'clearance', 'year-end-sale', 'year_end', 'year-end', 'yes'].includes(currentProduct.sale_tier));
   return `<span class="${isSale ? 'detail-price-sale' : ''}">${formatRp(price)}</span>` +
     (hasDiscount ? `<span class="detail-price-original">${formatRp(originalPrice)}</span>` : '');
 }
@@ -2503,23 +2530,7 @@ function localDateKey(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// Supabase/PostgREST batasi hasil .select() maksimal 1000 baris per query walau
-// tidak ditulis .limit() sama sekali -- kalau tidak di-loop, begitu jumlah kunjungan
-// sudah lewat 1000, baris-baris TERBARU (termasuk hari ini) malah tidak ikut
-// kehitung karena kepotong duluan. Tarik semua baris per 1000 sampai habis.
-async function fetchAllRows(table, columns) {
-  const pageSize = 1000;
-  let from = 0;
-  let all = [];
-  while (true) {
-    const { data, error } = await sb.from(table).select(columns).range(from, from + pageSize - 1);
-    if (error) return { data: null, error };
-    all = all.concat(data);
-    if (data.length < pageSize) break;
-    from += pageSize;
-  }
-  return { data: all, error: null };
-}
+// fetchAllRows didefinisikan di atas (sebelum loadProducts) untuk dipakai bersama
 
 async function loadVisitorStats() {
   const grid = document.getElementById('visitorStatsGrid');
@@ -2764,6 +2775,7 @@ function renderNavCategories() {
       }
       return `<button class="nav-cat-link" onclick="navFilterCategory('${cat.id}', this)" data-cat-id="${cat.id}">${cat.name}</button>`;
     }).join('') +
+    `<button class="nav-cat-link nav-cat-yes" onclick="navFilterCategory('year-end-sale', this)" data-cat-id="year-end-sale">Year End Sale</button>` +
     `<button class="nav-cat-link nav-cat-flash" onclick="navFilterCategory('flash', this)" data-cat-id="flash">Flash Sale</button>` +
     `<button class="nav-cat-link nav-cat-sale" onclick="navFilterCategory('sale', this)" data-cat-id="sale">Sale</button>` +
     `<button class="nav-cat-link nav-cat-sale" onclick="navFilterCategory('clearance', this)" data-cat-id="clearance">Clearance Sale</button>`;
@@ -2786,6 +2798,7 @@ function renderNavCategories() {
           ${cat.children.map(ch => `<button class="mobile-menu-link mobile-menu-sublink" onclick="mobileFilterCategory('${ch.id}', this)">${ch.name}</button>`).join('')}
         </div>`;
     }).join('') +
+    `<button class="mobile-menu-link mobile-menu-yes" onclick="mobileFilterCategory('year-end-sale', this)">Year End Sale</button>` +
     `<button class="mobile-menu-link mobile-menu-flash" onclick="mobileFilterCategory('flash', this)">Flash Sale</button>` +
     `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('sale', this)">Sale</button>` +
     `<button class="mobile-menu-link mobile-menu-sale" onclick="mobileFilterCategory('clearance', this)">Clearance Sale</button>`;
@@ -3018,12 +3031,13 @@ async function loadAdminProducts() {
   const tbody = document.getElementById('productsTableBody');
   tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Memuat...</td></tr>';
 
-  const { data, error } = await sb.from('products').select('*').order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false });
+  const { data, error } = await fetchAllRows('products', '*', q =>
+    q.order('sort_order', { ascending: true, nullsFirst: false }).order('created_at', { ascending: false })
+  );
   if (error) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state">Gagal memuat</td></tr>'; return; }
 
-  // Ambil cover (foto sort_order 0) tiap produk. Sengaja TIDAK pakai .in('product_id', ids) --
-  // lihat komentar di loadProducts() untuk alasannya (URL query kepanjangan + batas 1000 baris Supabase).
-  const { data: covers } = await sb.from('product_images').select('product_id, image_url').eq('sort_order', 0);
+  // Ambil cover (foto sort_order 0) tiap produk dengan fetchAllRows
+  const { data: covers } = await fetchAllRows('product_images', 'product_id, image_url', q => q.eq('sort_order', 0));
   const coverMap = {};
   if (covers) covers.forEach(c => { coverMap[c.product_id] = c.image_url; });
   allProducts = data.map(p => ({ ...p, cover_url: coverMap[p.id] || null }));
