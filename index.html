@@ -1582,7 +1582,8 @@ function showDbError(error, fallbackMsg) {
   if (error && error.code === '42501') {
     showToast('Sesi login sudah habis, silakan logout lalu login ulang');
   } else {
-    showToast(fallbackMsg);
+    const detail = error ? (error.message || error.details || error.hint || error.code || '') : '';
+    showToast(detail ? `${fallbackMsg}: ${detail}` : fallbackMsg);
   }
   console.error(error);
 }
